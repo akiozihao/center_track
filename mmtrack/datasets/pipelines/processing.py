@@ -39,6 +39,8 @@ class MatchInstances(object):
         return match_indices, ref_match_indices
 
     def __call__(self, results):
+        print('call match instances')
+        print(len(results))
         if len(results) != 2:
             raise NotImplementedError('Only support match 2 images now.')
 
