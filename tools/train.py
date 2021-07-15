@@ -9,12 +9,12 @@ import torch
 from mmcv import Config, DictAction
 from mmcv.runner import init_dist
 from mmdet.apis import set_random_seed
-from mmdet.datasets import build_dataset
+from mmtrack.datasets import build_dataset
 
 from mmtrack import __version__
 from mmtrack.utils import collect_env, get_root_logger
-
-
+from mmdet.apis import train_detector
+from mmtrack.models import build_detector as build_model
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a model')
     parser.add_argument('config', help='train config file path')
@@ -66,19 +66,19 @@ def main():
 
     cfg = Config.fromfile(args.config)
 
-    if cfg.get('USE_MMDET', False):
-        from mmdet.apis import train_detector as train_model
-        from mmtrack.models import build_detector as build_model
-        if 'detector' in cfg.model:
-            cfg.model = cfg.model.detector
-    elif cfg.get('USE_MMCLS', False):
-        from mmtrack.apis import train_model
-        from mmtrack.models import build_reid as build_model
-        if 'reid' in cfg.model:
-            cfg.model = cfg.model.reid
-    else:
-        from mmtrack.apis import train_model
-        from mmtrack.models import build_model
+    # if cfg.get('USE_MMDET', False):
+    #     from mmdet.apis import train_detector as train_model
+    #     from mmtrack.models import build_detector as build_model
+    #     if 'detector' in cfg.model:
+    #         cfg.model = cfg.model.detector
+    # elif cfg.get('USE_MMCLS', False):
+    #     from mmtrack.apis import train_model
+    #     from mmtrack.models import build_reid as build_model
+    #     if 'reid' in cfg.model:
+    #         cfg.model = cfg.model.reid
+    # else:
+    #     from mmtrack.apis import train_model
+    #     from mmtrack.models import build_model
     if args.cfg_options is not None:
         cfg.merge_from_dict(args.cfg_options)
     # set cudnn_benchmark
@@ -159,7 +159,7 @@ def main():
             CLASSES=datasets[0].CLASSES)
     # add an attribute for visualization convenience
     model.CLASSES = datasets[0].CLASSES
-    train_model(
+    train_detector(
         model,
         datasets,
         cfg,
