@@ -48,7 +48,7 @@ test_pipeline = [
             dict(type='VideoCollect', keys=['img'])
         ])
 ]
-data_root = 'data/MOT17/'
+data_root = '../data/MOT17/'
 data = dict(
     samples_per_gpu=4,
     workers_per_gpu=2,
@@ -87,7 +87,7 @@ model = dict(
     bbox_head=dict(
         type='CenterTrackHead',
         num_classes=1,
-        in_channel=64,
+        in_channel=16,
         feat_channel=64,  # todo check
         loss_center_heatmap=dict(type='GaussianFocalLoss', loss_weight=1.0),
         loss_wh=dict(type='L1Loss', loss_weight=0.1),
