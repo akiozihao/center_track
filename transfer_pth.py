@@ -2,6 +2,25 @@ from collections import OrderedDict
 
 import torch
 
+ignore = [
+    'neck.dla_up.ida_0.proj_1.conv.bias',
+    'neck.dla_up.ida_0.node_1.conv.bias',
+    'neck.dla_up.ida_1.proj_1.conv.bias',
+    'neck.dla_up.ida_1.node_1.conv.bias',
+    'neck.dla_up.ida_1.proj_2.conv.bias',
+    'neck.dla_up.ida_1.node_2.conv.bias',
+    'neck.dla_up.ida_2.proj_1.conv.bias',
+    'neck.dla_up.ida_2.node_1.conv.bias',
+    'neck.dla_up.ida_2.proj_2.conv.bias',
+    'neck.dla_up.ida_2.node_2.conv.bias',
+    'neck.dla_up.ida_2.proj_3.conv.bias',
+    'neck.dla_up.ida_2.node_3.conv.bias',
+    'neck.ida_up.proj_1.conv.bias',
+    'neck.ida_up.node_1.conv.bias',
+    'neck.ida_up.proj_2.conv.bias',
+    'neck.ida_up.node_2.conv.bias',
+]
+
 
 def transfer_pth(source_pth):
     dst_pth_info = dict()
@@ -16,7 +35,8 @@ def transfer_pth(source_pth):
             nk, nv = trans_neck(k, v)
         elif type == 'hm' or type == 'reg' or type == 'wh' or type == 'tracking':
             nk, nv = trans_head(k, v)
-        dst_state_dict[nk] = nv
+        if nk not in ignore:
+            dst_state_dict[nk] = nv
     for k, v in source.items():
         if k == 'state_dict':
             continue
