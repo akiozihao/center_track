@@ -17,10 +17,14 @@ train_pipeline = [
         bbox_clip_border=False),
     dict(type='SeqPhotoMetricDistortion', share_params=True),
     dict(
-        type='SeqRandomCrop',
-        share_params=False,
-        crop_size=(1088, 1088),
-        bbox_clip_border=False),
+        type='SeqRandomCenterCropPad',
+        share_params=True,
+        crop_size=(512, 512),
+        ratios=(0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3),
+        mean=[0, 0, 0],
+        std=[1, 1, 1],
+        to_rgb=True,
+        test_pad_mode=None),
     dict(type='SeqRandomFlip', share_params=True, flip_ratio=0.5),
     dict(type='SeqNormalize', **img_norm_cfg),
     dict(type='SeqPad', size_divisor=32),
@@ -34,23 +38,38 @@ train_pipeline = [
     dict(type='SeqDefaultFormatBundle', ref_prefix='ref')
 ]
 test_pipeline = [
-    dict(type='LoadImageFromFile'),
+    dict(type='LoadMultiImagesFromFile', to_float32=True),
     dict(
         type='MultiScaleFlipAug',
         img_scale=(1088, 1088),
         flip=False,
         transforms=[
-            dict(type='Resize', keep_ratio=True),
-            dict(type='RandomFlip'),
-            dict(type='Normalize', **img_norm_cfg),
-            dict(type='Pad', size_divisor=32),
-            dict(type='ImageToTensor', keys=['img']),
-            dict(type='VideoCollect', keys=['img'])
+            dict(type='SeqResize', keep_ratio=True),
+            dict(
+                type='SeqRandomCenterCropPad',
+                ratios=None,
+                border=None,
+                mean=[0, 0, 0],
+                std=[1, 1, 1],
+                to_rgb=True,
+                test_mode=True,
+                test_pad_mode=['logical_or', 31],
+                test_pad_add_pix=1),
+            dict(type='SeqRandomFlip', share_params=True, flip_ratio=0.5),
+            dict(type='SeqNormalize', **img_norm_cfg),
+            dict(type='MatchInstances', skip_nomatch=True),
+            dict(
+                type='VideoCollect',
+                keys=[
+                    'img'
+                ]),
+            dict(type='SeqDefaultFormatBundle', ref_prefix='ref')
         ])
 ]
-data_root = 'data/MOT17/'
+# data_root = 'data/MOT17/'
+data_root = '/home/akio/data/MOT/MOT17-mini/'
 data = dict(
-    samples_per_gpu=2,
+    samples_per_gpu=4,
     workers_per_gpu=2,
     train=dict(
         type=dataset_type,
@@ -73,7 +92,11 @@ data = dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/half-val_cocoformat.json',
         img_prefix=data_root + 'train',
-        ref_img_sampler=None,
+        ref_img_sampler=dict(
+            num_ref_imgs=1,
+            frame_range=10,
+            filter_key_img=True,
+            method='uniform'),
         pipeline=test_pipeline))
 
 model = dict(

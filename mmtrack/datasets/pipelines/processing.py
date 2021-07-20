@@ -50,5 +50,4 @@ class MatchInstances(object):
         else:
             results[0]['gt_match_indices'] = match_indices.copy()
             results[1]['gt_match_indices'] = ref_match_indices.copy()
-
         return results

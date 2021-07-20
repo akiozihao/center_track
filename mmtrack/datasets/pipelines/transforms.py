@@ -2,9 +2,10 @@ import cv2
 import mmcv
 import numpy as np
 from mmdet.datasets.builder import PIPELINES
-from mmdet.datasets.pipelines import Normalize, Pad, RandomFlip, Resize
+from mmdet.datasets.pipelines import Normalize, Pad, RandomFlip, Resize, RandomCenterCropPad
 
 from mmtrack.core import crop_image
+from numpy import random
 
 
 @PIPELINES.register_module()
@@ -587,7 +588,7 @@ class SeqRandomCrop(object):
                 bboxes[:, 0::2] = np.clip(bboxes[:, 0::2], 0, img_shape[1])
                 bboxes[:, 1::2] = np.clip(bboxes[:, 1::2], 0, img_shape[0])
             valid_inds = (bboxes[:, 2] > bboxes[:, 0]) & (
-                bboxes[:, 3] > bboxes[:, 1])
+                    bboxes[:, 3] > bboxes[:, 1])
             # If the crop does not contain any gt-bbox area and
             # self.allow_negative_crop is False, skip this image.
             if (key == 'gt_bboxes' and not valid_inds.any()
@@ -605,7 +606,7 @@ class SeqRandomCrop(object):
             if mask_key in results:
                 results[mask_key] = results[mask_key][
                     valid_inds.nonzero()[0]].crop(
-                        np.asarray([crop_x1, crop_y1, crop_x2, crop_y2]))
+                    np.asarray([crop_x1, crop_y1, crop_x2, crop_y2]))
 
         # crop semantic seg
         for key in results.get('seg_fields', []):
@@ -727,7 +728,7 @@ class SeqPhotoMetricDistortion(object):
                 'Only single img_fields is allowed'
         img = results['img']
         assert img.dtype == np.float32, \
-            'PhotoMetricDistortion needs the input image of dtype np.float32,'\
+            'PhotoMetricDistortion needs the input image of dtype np.float32,' \
             ' please set "to_float32=True" in "LoadImageFromFile" pipeline'
         # random brightness
         if params['delta'] is not None:
@@ -796,4 +797,125 @@ class SeqPhotoMetricDistortion(object):
         repr_str += 'saturation_range='
         repr_str += f'{(self.saturation_lower, self.saturation_upper)},\n'
         repr_str += f'hue_delta={self.hue_delta})'
+        return repr_str
+
+
+@PIPELINES.register_module()
+class SeqRandomCenterCropPad(RandomCenterCropPad):
+
+    def __init__(self, share_params=True, **args):
+        super(SeqRandomCenterCropPad, self).__init__(**args)
+        self.share_params = share_params
+
+    def _train_aug(self, results):
+        """Random crop and around padding the original image.
+        Args:
+            results (dict): Image infomations in the augment pipeline.
+        Returns:
+            results (dict): The updated dict.
+        """
+        imgs, all_bboxes = [], []
+        for result in results:
+            imgs.append(result['img'])
+            all_bboxes.append(result['gt_bboxes'])
+
+        h, w, c = imgs[0].shape
+        while True:
+            scale = random.choice(self.ratios)
+            new_h = int(self.crop_size[0] * scale)
+            new_w = int(self.crop_size[1] * scale)
+            h_border = self._get_border(self.border, h)
+            w_border = self._get_border(self.border, w)
+
+            for i in range(50):
+                center_x = random.randint(low=w_border, high=w - w_border)
+                center_y = random.randint(low=h_border, high=h - h_border)
+                flag = True
+                cropped_imgs, borders, pathes = [], [], []
+                for idx, img in enumerate(imgs):
+                    bboxes = all_bboxes[idx]
+                    cropped_img, border, patch = self._crop_image_and_paste(
+                        img, [center_y, center_x], [new_h, new_w])
+                    cropped_imgs.append(cropped_img)
+                    borders.append(border)
+                    pathes.append(pathes)
+                    mask = self._filter_boxes(patch, bboxes)
+                    # if image do not have valid bbox, any crop patch is valid.
+                    if not mask.any() and len(bboxes) > 0:
+                        flag = False
+                        cropped_imgs.clear()
+                        borders.clear()
+                        pathes.clear()
+                        break
+                if not flag:
+                    continue
+
+                for idx, result in enumerate(results):
+                    result['img'] = cropped_imgs[idx]
+                    result['img_shape'] = cropped_imgs[idx].shape
+                    result['pad_shape'] = cropped_imgs[idx].shape
+
+                    x0, y0, x1, y1 = patch
+
+                    left_w, top_h = center_x - x0, center_y - y0
+                    cropped_center_x, cropped_center_y = new_w // 2, new_h // 2
+
+                    # crop bboxes accordingly and clip to the image boundary
+                    for key in result.get('bbox_fields', []):
+                        mask = self._filter_boxes(patch, result[key])
+                        bboxes = result[key][mask]
+                        bboxes[:, 0:4:2] += cropped_center_x - left_w - x0
+                        bboxes[:, 1:4:2] += cropped_center_y - top_h - y0
+                        if self.bbox_clip_border:
+                            bboxes[:, 0:4:2] = np.clip(bboxes[:, 0:4:2], 0, new_w)
+                            bboxes[:, 1:4:2] = np.clip(bboxes[:, 1:4:2], 0, new_h)
+                        keep = (bboxes[:, 2] > bboxes[:, 0]) & (
+                                bboxes[:, 3] > bboxes[:, 1])
+                        bboxes = bboxes[keep]
+                        result[key] = bboxes
+                        if key in ['gt_bboxes']:
+                            if 'gt_labels' in result:
+                                labels = result['gt_labels'][mask]
+                                labels = labels[keep]
+                                result['gt_labels'] = labels
+                            if 'gt_instance_ids' in result:
+                                instace_ids = result['gt_instance_ids'][mask]
+                                instace_ids = instace_ids[keep]
+                                result['gt_instance_ids'] = instace_ids
+                            if 'gt_masks' in result:
+                                raise NotImplementedError(
+                                    'RandomCenterCropPad only supports bbox.')
+
+                    # crop semantic seg
+                    for key in result.get('seg_fields', []):
+                        raise NotImplementedError(
+                            'RandomCenterCropPad only supports bbox.')
+                return results
+
+    def _test_aug(self, results):
+        outs = []
+        for result in results:
+            outs.append(super()._test_aug(result))
+        return outs
+
+    def __call__(self, results):
+        img = results[0]['img']
+        assert img.dtype == np.float32, (
+            'RandomCenterCropPad needs the input image of dtype np.float32,'
+            ' please set "to_float32=True" in "LoadImageFromFile" pipeline')
+        h, w, c = img.shape
+        assert c == len(self.mean)
+        if self.test_mode:
+            return self._test_aug(results)
+        else:
+            return self._train_aug(results)
+
+    def __repr__(self):
+        repr_str = self.__class__.__name__
+        repr_str += f'ratios={self.ratios}, '
+        repr_str += f'border={self.border}, '
+        repr_str += f'mean={self.input_mean}, '
+        repr_str += f'std={self.input_std}, '
+        repr_str += f'to_rgb={self.to_rgb}, '
+        repr_str += f'bbox_clip_border={self.bbox_clip_border})'
         return repr_str
