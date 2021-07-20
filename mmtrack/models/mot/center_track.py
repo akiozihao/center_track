@@ -58,13 +58,17 @@ class CenterTrack(BaseMultiObjectTracker):
         frame_id = img_metas[0].get('frame_id', -1)
         if frame_id == 0:
             self.tracker.reset()
+        # todo check this
+        batch_input_shape = tuple(img[0].size()[-2:])
+        img_metas[0]['batch_input_shape'] = batch_input_shape
 
         x = self.detector.extract_feat(img)
 
         if hasattr(self.detector, 'bbox_head'):
             outs = self.detector.bbox_head(x)
             result_list = self.detector.bbox_head.get_bboxes(
-                *outs, img_metas=img_metas, rescale=rescale)
+                # todo Are outs always tensors?
+                *[[tensor] for tensor in outs], img_metas=img_metas, rescale=rescale)
             # TODO: support batch inference
             det_bboxes = result_list[0][0]
             det_labels = result_list[0][1]

@@ -40,8 +40,8 @@ train_pipeline = [
 test_pipeline = [
     dict(type='LoadMultiImagesFromFile', to_float32=True),
     dict(
-        type='MultiScaleFlipAug',
-        img_scale=(1088, 1088),
+        type='SeqMultiScaleFlipAug',
+        img_scale=(512, 512),
         flip=False,
         transforms=[
             dict(type='SeqResize', keep_ratio=True),
@@ -57,17 +57,18 @@ test_pipeline = [
                 test_pad_add_pix=1),
             dict(type='SeqRandomFlip', share_params=True, flip_ratio=0.5),
             dict(type='SeqNormalize', **img_norm_cfg),
-            dict(type='MatchInstances', skip_nomatch=True),
+            # dict(type='MatchInstances', skip_nomatch=True),
             dict(
                 type='VideoCollect',
-                keys=[
-                    'img'
-                ]),
+                meta_keys=('filename', 'ori_shape', 'img_shape', 'pad_shape',
+                           'scale_factor', 'flip', 'flip_direction',
+                           'img_norm_cfg', 'border', 'batch_input_shape'),
+                keys=['img']),
             dict(type='SeqDefaultFormatBundle', ref_prefix='ref')
         ])
 ]
-# data_root = 'data/MOT17/'
-data_root = '/home/akio/data/MOT/MOT17-mini/'
+data_root = 'data/MOT17/'
+# data_root = '/home/akio/data/MOT/MOT17-mini/'
 data = dict(
     samples_per_gpu=4,
     workers_per_gpu=2,
@@ -94,7 +95,8 @@ data = dict(
         img_prefix=data_root + 'train',
         ref_img_sampler=dict(
             num_ref_imgs=1,
-            frame_range=10,
+            # frame_range=10,
+            frame_range=[-1,1],
             filter_key_img=True,
             method='uniform'),
         pipeline=test_pipeline))
@@ -102,7 +104,8 @@ data = dict(
 model = dict(
     type='CenterTrack',
     pretrains=dict(
-        detector='/home/akio/dev/mmtracking/new_model.pth'
+        # detector='/home/akio/dev/mmtracking/new_model.pth'
+        detector='../new_model.pth'
     ),
     detector=dict(
         type='CTDetector',
@@ -121,6 +124,7 @@ model = dict(
             loss_wh=dict(type='L1Loss', loss_weight=0.1),
             loss_offset=dict(type='L1Loss', loss_weight=1.0),
             loss_tracking=dict(type='L1Loss', loss_weight=1.0)),
+        test_cfg=dict(topk=100, local_maximum_kernel=3, max_per_img=100)
     ),
     tracker=dict(type='CTTracker')
 )
