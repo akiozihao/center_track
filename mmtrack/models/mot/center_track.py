@@ -64,7 +64,7 @@ class CenterTrack(BaseMultiObjectTracker):
         if hasattr(self.detector, 'bbox_head'):
             outs = self.detector.bbox_head(x)
             result_list = self.detector.bbox_head.get_bboxes(
-                *outs, img_metas=img_metas, rescale=rescale, for_tracker=True)
+                *outs, img_metas=img_metas, rescale=rescale)
             # TODO: support batch inference
             det_bboxes = result_list[0][0]
             det_labels = result_list[0][1]
