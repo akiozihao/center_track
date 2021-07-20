@@ -50,7 +50,7 @@ test_pipeline = [
 ]
 data_root = 'data/MOT17/'
 data = dict(
-    samples_per_gpu=4,
+    samples_per_gpu=2,
     workers_per_gpu=2,
     train=dict(
         type=dataset_type,
@@ -77,25 +77,33 @@ data = dict(
         pipeline=test_pipeline))
 
 model = dict(
-    type='CTDetector',
-    backbone=dict(
-        type='DLA',
-        arch=34),
-    neck=dict(
-        type='DLANeck',
-        arch=34),
-    bbox_head=dict(
-        type='CenterTrackHead',
-        num_classes=1,
-        in_channel=64,
-        feat_channel=256,  # todo check
-        loss_center_heatmap=dict(type='GaussianFocalLoss', loss_weight=1.0),
-        loss_wh=dict(type='L1Loss', loss_weight=0.1),
-        loss_offset=dict(type='L1Loss', loss_weight=1.0),
-        loss_tracking=dict(type='L1Loss', loss_weight=1.0)),
-    train_cfg=None,
-    test_cfg=dict(topk=100, local_maximum_kernel=3, max_per_img=100))
+    type='CenterTrack',
+    pretrains=dict(
+        detector='/home/akio/dev/mmtracking/new_model.pth'
+    ),
+    detector=dict(
+        type='CTDetector',
+        backbone=dict(
+            type='DLA',
+            arch=34),
+        neck=dict(
+            type='DLANeck',
+            arch=34),
+        bbox_head=dict(
+            type='CenterTrackHead',
+            num_classes=1,
+            in_channel=64,
+            feat_channel=256,
+            loss_center_heatmap=dict(type='GaussianFocalLoss', loss_weight=1.0),
+            loss_wh=dict(type='L1Loss', loss_weight=0.1),
+            loss_offset=dict(type='L1Loss', loss_weight=1.0),
+            loss_tracking=dict(type='L1Loss', loss_weight=1.0)),
+    ),
+    tracker=dict(type='CTTracker')
+)
 
+# train_cfg = None,  # todo check this
+# test_cfg = dict(topk=100, local_maximum_kernel=3, max_per_img=100))  # todo check this
 # We fixed the incorrect img_norm_cfg problem in the source code.
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
@@ -110,4 +118,10 @@ lr_config = dict(
     warmup_iters=1000,
     warmup_ratio=1.0 / 1000,
     step=[18, 24])  # the real step is [18*5, 24*5]
-runner = dict(type='EpochBasedRunner',max_epochs=28)  # the real epoch is 28*5=140
+
+runner = dict(type='EpochBasedRunner', max_epochs=28)  # the real epoch is 28*5=140
+
+# runtime settings
+total_epochs = 4
+evaluation = dict(metric=['bbox', 'track'], interval=1)
+search_metrics = ['MOTA', 'IDF1', 'FN', 'FP', 'IDs', 'MT', 'ML']
