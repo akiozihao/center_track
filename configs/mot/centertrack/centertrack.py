@@ -77,7 +77,7 @@ data = dict(
         pipeline=test_pipeline))
 
 model = dict(
-    type='CenterTrack',
+    type='CTDetector',
     backbone=dict(
         type='DLA',
         arch=34),
@@ -88,7 +88,7 @@ model = dict(
         type='CenterTrackHead',
         num_classes=1,
         in_channel=64,
-        feat_channel=64,  # todo check
+        feat_channel=256,  # todo check
         loss_center_heatmap=dict(type='GaussianFocalLoss', loss_weight=1.0),
         loss_wh=dict(type='L1Loss', loss_weight=0.1),
         loss_offset=dict(type='L1Loss', loss_weight=1.0),
@@ -101,7 +101,7 @@ img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 
 # optimizer
-optimizer = dict(type='SGD', lr=0.02, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=0.0025, momentum=0.9, weight_decay=0.0001)
 # optimizer_config = dict(grad_clip=None)
 
 lr_config = dict(
