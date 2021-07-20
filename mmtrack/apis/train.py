@@ -33,7 +33,8 @@ def train_model(model,
 
     if cfg.get('USE_MMDET', False) or cfg.get('USE_MMCLS', False):
         from mmdet.datasets import build_dataset
-
+    else:
+        from mmtrack.datasets import build_dataset
     # prepare data loaders
     dataset = dataset if isinstance(dataset, (list, tuple)) else [dataset]
     if 'imgs_per_gpu' in cfg.data:
