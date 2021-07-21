@@ -28,13 +28,13 @@ class CTTracker(BaseTracker):
         else:
             ids = torch.full((bboxes.size(0),), -1, dtype=torch.long)
             det_ctx, det_cty = self._xyxy2center(bboxes_with_motion)
-            threshold = 0.0  # todo check
+            threshold = 10000  # todo check
             closest_id = -1
             closest_distance = float('inf')
-            for gt_bboxes_id in range(det_ctx):
+            for gt_bboxes_id in range(len(det_ctx)):
                 for id, obj in self.tracks.items():
-                    ref_ctx, ref_cty = self._xyxy2center(obj['bboxes'][-1])
-                    dis = self._cal_dist(det_ctx, det_cty, ref_ctx, ref_cty)
+                    ref_ctx, ref_cty = self._xyxy2center(obj['bboxes'][-1]) # todo 有问题
+                    dis = self._cal_dist(det_ctx[gt_bboxes_id], det_cty[gt_bboxes_id], ref_ctx, ref_cty)
                     if dis < threshold and dis < closest_distance:
                         closest_id = id
                         closest_distance = dis
@@ -47,11 +47,11 @@ class CTTracker(BaseTracker):
                 dtype=torch.long)
             self.num_tracks += new_track_inds.sum()
 
-            self.update(
-                ids=ids,
-                bboxes=bboxes,
-                labels=labels,
-                frame_ids=frame_id)
+        self.update(
+            ids=ids,
+            bboxes=bboxes,
+            labels=labels,
+            frame_ids=frame_id)
         return bboxes, labels, ids
 
     def _cal_dist(self, det_ctx, det_cty, ref_ctx, ref_cty):
@@ -59,7 +59,7 @@ class CTTracker(BaseTracker):
         # use L2
         return torch.sqrt(torch.pow((det_ctx - ref_ctx), 2) + torch.pow((det_cty - ref_cty), 2))
 
-    def _xyxy2center(self, bbox):  # todo shape ? (N,4)
+    def _xyxy2center(self, bbox):  # shape (N,5)
         ctx = bbox[:, 0] + (bbox[:, 2] - bbox[:, 0]) / 2
         cty = bbox[:, 1] + (bbox[:, 3] - bbox[:, 1]) / 2
         return ctx, cty

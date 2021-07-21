@@ -55,7 +55,7 @@ class CenterTrack(BaseMultiObjectTracker):
         Returns:
             dict[str : list(ndarray)]: The tracking results.
         """
-        frame_id = img_metas[0].get('frame_id', -1)
+        frame_id = img_metas[0]['frame_id']
         if frame_id == 0:
             self.tracker.reset()
             self.ref_bboxes = None
@@ -68,21 +68,18 @@ class CenterTrack(BaseMultiObjectTracker):
         batch_input_shape = tuple(img[0].size()[-2:])
         img_metas[0]['batch_input_shape'] = batch_input_shape
         x = self.detector.extract_feat(img, self.ref_img, self.ref_hm)
-        if hasattr(self.detector, 'bbox_head'):
-            outs = self.detector.bbox_head(x)
-            result_list = self.detector.bbox_head.get_bboxes(
-                # todo Are outs always tensors?
-                *[[tensor] for tensor in outs], img_metas=img_metas, rescale=rescale)
-            # TODO: support batch inference
-            det_bboxes = result_list[0][0]
-            det_labels = result_list[0][1]
-            gt_bboxes_with_motion = result_list[0][2]
-            num_classes = self.detector.bbox_head.num_classes
-            self.ref_img = img
-            self.ref_bboxes = det_bboxes
-            self.ref_labels = det_labels
-        else:
-            raise TypeError('detector must has bbox_head.')
+        outs = self.detector.bbox_head(x)
+        result_list = self.detector.bbox_head.get_bboxes(
+            # todo Are outs always tensors?
+            *[[tensor] for tensor in outs], img_metas=img_metas, rescale=rescale)
+        # TODO: support batch inference
+        det_bboxes = result_list[0][0]
+        det_labels = result_list[0][1]
+        gt_bboxes_with_motion = result_list[0][2]
+        num_classes = self.detector.bbox_head.num_classes
+        self.ref_img = img
+        self.ref_bboxes = det_bboxes
+        self.ref_labels = det_labels
 
         bboxes, labels, ids = self.tracker.track(
             img=img,
