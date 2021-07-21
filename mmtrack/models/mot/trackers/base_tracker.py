@@ -221,4 +221,4 @@ class BaseTracker(metaclass=ABCMeta):
         if len(crop_imgs) > 0:
             return torch.cat(crop_imgs, dim=0)
         else:
-            return img.new_zeros((0, ))
+            return img.new_zeros((0,))

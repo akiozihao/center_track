@@ -67,7 +67,7 @@ test_pipeline = [
             dict(type='SeqDefaultFormatBundle', ref_prefix='ref')
         ])
 ]
-data_root = 'data/MOT17/'
+data_root = '../data/MOT17/'
 # data_root = '/home/akio/data/MOT/MOT17-mini/'
 data = dict(
     samples_per_gpu=4,
@@ -96,7 +96,7 @@ data = dict(
         ref_img_sampler=dict(
             num_ref_imgs=1,
             # frame_range=10,
-            frame_range=[-1,1],
+            frame_range=[-1, 1],
             filter_key_img=True,
             method='uniform'),
         pipeline=test_pipeline))

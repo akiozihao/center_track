@@ -12,41 +12,35 @@ class CTTracker(BaseTracker):
     def track(self,
               img,
               img_metas,
-              gt_bboxes,
-              ref_bboxes,
+              bboxes,
+              bboxes_with_motion,
               labels,
               frame_id,
               rescale,
               **kwargs):
-        assert gt_bboxes.shape == ref_bboxes.shape
-        if self.empty or ref_bboxes.size(0) == 0:
-            num_new_tracks = ref_bboxes.size(0)
+        if self.empty or bboxes.size(0) == 0:
+            num_new_tracks = bboxes.size(0)
             ids = torch.arange(
                 self.num_tracks,
                 self.num_tracks + num_new_tracks,
                 dtype=torch.long)
             self.num_tracks += num_new_tracks
         else:
-            ids = torch.full((ref_bboxes.size(0),), -1, dtype=torch.long)
-
-            for idx, ref_bbox in enumerate(ref_bboxes):
-                threshold = 0.0  # todo need to check
-                det_center = self._xyxy2center(ref_bbox)
-                ref_center = self._xyxy2center(ref_bbox)  # shape (1,2)
-                assert det_center.ndim == 2 and det_center.shape[0] == 1
-                assert ref_center.ndim == 2 and ref_center.shape[0] == 1
-                closest_id = -1
-                closest_distance = float('inf')
-                for id in self.tracks.keys():
-                    pre_gt_center = self.tracks[id].det_center[-1]
-                    dis = self._cal_dist(pre_gt_center, ref_center)
+            ids = torch.full((bboxes.size(0),), -1, dtype=torch.long)
+            det_ctx, det_cty = self._xyxy2center(bboxes_with_motion)
+            threshold = 0.0  # todo check
+            closest_id = -1
+            closest_distance = float('inf')
+            for gt_bboxes_id in range(det_ctx):
+                for id, obj in self.tracks.items():
+                    ref_ctx, ref_cty = self._xyxy2center(obj['bboxes'][-1])
+                    dis = self._cal_dist(det_ctx, det_cty, ref_ctx, ref_cty)
                     if dis < threshold and dis < closest_distance:
                         closest_id = id
                         closest_distance = dis
-                ids[idx] = closest_id
+                    ids[gt_bboxes_id] = closest_id
 
             new_track_inds = ids == -1
-
             ids[new_track_inds] = torch.arange(
                 self.num_tracks,
                 self.num_tracks + new_track_inds.sum(),
@@ -55,15 +49,18 @@ class CTTracker(BaseTracker):
 
             self.update(
                 ids=ids,
-                gt_bboxes=gt_bboxes[:, :4],
-                ref_bboxes=ref_bboxes[:, :4],
-                scores=ref_bboxes[:, -1],
+                bboxes=bboxes,
                 labels=labels,
                 frame_ids=frame_id)
-        return gt_bboxes, labels, ids
+        return bboxes, labels, ids
 
-    def _xyxy2center(self, bbox):  # shape ? (1,4) or (1,3)
-        # try (1,3)
-        ctx = bbox[0][0] + (bbox[0][2] - bbox[0][0]) / 2
-        cty = bbox[0][1] + (bbox[0][3] - bbox[0][1]) / 2
+    def _cal_dist(self, det_ctx, det_cty, ref_ctx, ref_cty):
+        # todo check this  L2 or L1
+        # use L2
+        return torch.sqrt(torch.pow((det_ctx - ref_ctx), 2) + torch.pow((det_cty - ref_cty), 2))
+
+    def _xyxy2center(self, bbox):  # todo shape ? (N,4)
+        ctx = bbox[:, 0] + (bbox[:, 2] - bbox[:, 0]) / 2
+        cty = bbox[:, 1] + (bbox[:, 3] - bbox[:, 1]) / 2
         return ctx, cty
+

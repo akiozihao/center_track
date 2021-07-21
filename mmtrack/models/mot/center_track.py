@@ -1,7 +1,7 @@
 from mmdet.core import bbox2result
 
 from mmtrack.core import track2result
-from ..builder import MODELS, build_tracker,build_detector
+from ..builder import MODELS, build_tracker, build_detector
 from .base import BaseMultiObjectTracker
 
 
@@ -58,12 +58,16 @@ class CenterTrack(BaseMultiObjectTracker):
         frame_id = img_metas[0].get('frame_id', -1)
         if frame_id == 0:
             self.tracker.reset()
+            self.ref_bboxes = None
+            self.ref_hm = None
+            self.ref_img = img.clone()
+            self.pre_labels = None
+        else:
+            self.ref_hm = self.detector._build_test_hm(self.ref_img, self.ref_bboxes)
         # todo check this
         batch_input_shape = tuple(img[0].size()[-2:])
         img_metas[0]['batch_input_shape'] = batch_input_shape
-
-        x = self.detector.extract_feat(img)
-
+        x = self.detector.extract_feat(img, self.ref_img, self.ref_hm)
         if hasattr(self.detector, 'bbox_head'):
             outs = self.detector.bbox_head(x)
             result_list = self.detector.bbox_head.get_bboxes(
@@ -72,16 +76,19 @@ class CenterTrack(BaseMultiObjectTracker):
             # TODO: support batch inference
             det_bboxes = result_list[0][0]
             det_labels = result_list[0][1]
-            ref_bboxes = result_list[0][2]
+            gt_bboxes_with_motion = result_list[0][2]
             num_classes = self.detector.bbox_head.num_classes
+            self.ref_img = img
+            self.ref_bboxes = det_bboxes
+            self.ref_labels = det_labels
         else:
             raise TypeError('detector must has bbox_head.')
 
         bboxes, labels, ids = self.tracker.track(
             img=img,
             img_metas=img_metas,
-            gt_bboxes=det_bboxes,
-            ref_bboxes=ref_bboxes,
+            bboxes=det_bboxes,
+            bboxes_with_motion=gt_bboxes_with_motion,
             labels=det_labels,
             frame_id=frame_id,
             rescale=rescale,
@@ -105,14 +112,14 @@ class CenterTrack(BaseMultiObjectTracker):
                       ref_gt_match_indices,
                       ref_gt_instance_ids):
         return self.detector.forward_train(img,
-                                    img_metas,
-                                    gt_bboxes,
-                                    gt_labels,
-                                    gt_instance_ids,
-                                    gt_match_indices,
-                                    ref_img_metas,
-                                    ref_img,
-                                    ref_gt_bboxes,
-                                    ref_gt_labels,
-                                    ref_gt_match_indices,
-                                    ref_gt_instance_ids)
+                                           img_metas,
+                                           gt_bboxes,
+                                           gt_labels,
+                                           gt_instance_ids,
+                                           gt_match_indices,
+                                           ref_img_metas,
+                                           ref_img,
+                                           ref_gt_bboxes,
+                                           ref_gt_labels,
+                                           ref_gt_match_indices,
+                                           ref_gt_instance_ids)
