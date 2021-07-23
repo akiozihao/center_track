@@ -68,7 +68,8 @@ class CenterTrack(BaseMultiObjectTracker):
         batch_input_shape = tuple(img[0].size()[-2:])
         img_metas[0]['batch_input_shape'] = batch_input_shape
         x = self.detector.extract_feat(img, self.ref_img, self.ref_hm)
-        outs = self.detector.bbox_head(x)
+        center_heatmap_pred, wh_pred, offset_pred, tracking_pred, ltrb_amodal_pred = self.detector.bbox_head(x)
+        outs = [center_heatmap_pred, wh_pred, offset_pred, tracking_pred]
         result_list = self.detector.bbox_head.get_bboxes(
             # todo Are outs always tensors?
             *[[tensor] for tensor in outs], img_metas=img_metas, rescale=rescale)
