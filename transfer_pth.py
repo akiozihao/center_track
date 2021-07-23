@@ -33,7 +33,7 @@ def transfer_pth(source_pth):
             nk, nv = trans_base(k, v)
         elif type == 'dla_up' or type == 'ida_up':
             nk, nv = trans_neck(k, v)
-        elif type == 'hm' or type == 'reg' or type == 'wh' or type == 'tracking':
+        elif type == 'hm' or type == 'reg' or type == 'wh' or type == 'tracking' or type == 'ltrb_amodal':
             nk, nv = trans_head(k, v)
         if nk not in ignore:
             dst_state_dict[nk] = nv
@@ -95,9 +95,11 @@ def trans_head(k, v):
         l_k[0] = 'wh_head'
     elif l_k[0] == 'tracking':
         l_k[0] = 'tracking_head'
+    elif l_k[0] == 'ltrb_amodal':
+        l_k[0] = 'ltrb_amodal_head'
     l_k.insert(0, 'bbox_head')
     return '.'.join(str(i) for i in l_k), v
 
 
-new_pth_info = transfer_pth('/home/akio/Downloads/mot17_fulltrain.pth')
+new_pth_info = transfer_pth('/home/akio/dev/centertrack_origin/models/mot17_fulltrain.pth')
 torch.save(new_pth_info, 'new_model.pth')

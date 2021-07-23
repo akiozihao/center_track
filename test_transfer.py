@@ -1,4 +1,4 @@
-from mmdet.models.detectors.centertrack import CenterTrack
+from mmdet.models.detectors.ct_detector import CTDetector
 
 import torch
 # m_backbone = DLA(34)
@@ -22,7 +22,7 @@ bbox_head = dict(
     loss_offset=dict(type='L1Loss', loss_weight=1.0),
     loss_tracking=dict(type='L1Loss', loss_weight=1.0))
 
-model = CenterTrack(backbone, neck, bbox_head)
+model = CTDetector(backbone, neck, bbox_head)
 
 nsd = torch.load('../mmtracking/new_model.pth')['state_dict']
 
