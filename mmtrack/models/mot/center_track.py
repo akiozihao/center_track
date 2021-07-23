@@ -112,11 +112,9 @@ class CenterTrack(BaseMultiObjectTracker):
                                            img_metas,
                                            gt_bboxes,
                                            gt_labels,
-                                           gt_instance_ids,
                                            gt_match_indices,
                                            ref_img_metas,
                                            ref_img,
                                            ref_gt_bboxes,
                                            ref_gt_labels,
-                                           ref_gt_match_indices,
-                                           ref_gt_instance_ids)
+                                           ref_gt_match_indices)
