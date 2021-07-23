@@ -1,3 +1,5 @@
+import numpy as np
+
 from mmtrack.models import TRACKERS
 
 from .base_tracker import BaseTracker
@@ -6,8 +8,18 @@ import torch
 
 @TRACKERS.register_module()
 class CTTracker(BaseTracker):
-    def __init__(self, **kwargs):
+    def __init__(self,
+                 obj_score_thr=0.3,
+                 **kwargs):
         super(CTTracker, self).__init__(**kwargs)
+        self.pre_img = None
+        self.pre_centers = None
+        self.pre_center2id = {}
+
+    def reset(self):
+        super(CTTracker, self).reset()
+        self.pre_img = None
+        self.pre_centers = None
 
     def track(self,
               img,  # todo
@@ -25,20 +37,16 @@ class CTTracker(BaseTracker):
                 self.num_tracks + num_new_tracks,
                 dtype=torch.long)
             self.num_tracks += num_new_tracks
+            self.pre_img = img
+            self.pre_centers = self._xyxy2center(bboxes)
         else:
             ids = torch.full((bboxes.size(0),), -1, dtype=torch.long)
-            det_ctx, det_cty = self._xyxy2center(bboxes_with_motion)
-            threshold = 10000  # todo check
-            closest_id = -1
-            closest_distance = float('inf')
-            for gt_bboxes_id in range(len(det_ctx)):
-                for id, obj in self.tracks.items():
-                    ref_ctx, ref_cty = self._xyxy2center(obj['bboxes'][-1]) # todo 有问题
-                    dis = self._cal_dist(det_ctx[gt_bboxes_id], det_cty[gt_bboxes_id], ref_ctx, ref_cty)
-                    if dis < threshold and dis < closest_distance:
-                        closest_id = id
-                        closest_distance = dis
-                    ids[gt_bboxes_id] = closest_id
+
+            det_centers = self._xyxy2center(bboxes_with_motion)
+            dist = torch.cdist(det_centers, self.pre_centers, 2)  # todo ximi cheack : diff with origin
+            matched_indices = self._greedy_assignment(dist)
+            for i in range(matched_indices.shape[0]):
+                ids[matched_indices[i][0]] = matched_indices[i][1]
 
             new_track_inds = ids == -1
             ids[new_track_inds] = torch.arange(
@@ -46,6 +54,8 @@ class CTTracker(BaseTracker):
                 self.num_tracks + new_track_inds.sum(),
                 dtype=torch.long)
             self.num_tracks += new_track_inds.sum()
+            self.pre_img = img
+            self.pre_centers = det_centers
 
         self.update(
             ids=ids,
@@ -54,13 +64,19 @@ class CTTracker(BaseTracker):
             frame_ids=frame_id)
         return bboxes, labels, ids
 
-    def _cal_dist(self, det_ctx, det_cty, ref_ctx, ref_cty):
-        # todo check this  L2 or L1
-        # use L2
-        return torch.sqrt(torch.pow((det_ctx - ref_ctx), 2) + torch.pow((det_cty - ref_cty), 2))
-
     def _xyxy2center(self, bbox):  # shape (N,5)
         ctx = bbox[:, 0] + (bbox[:, 2] - bbox[:, 0]) / 2
         cty = bbox[:, 1] + (bbox[:, 3] - bbox[:, 1]) / 2
-        return ctx, cty
+        return torch.cat((ctx.reshape(-1, 1), cty.reshape(-1, 1)), 1)
 
+    def _greedy_assignment(self, dist):
+        dist = dist.cpu().numpy()
+        matched_indices = []
+        if dist.shape[1] == 0:
+            return np.array(matched_indices, np.int32).reshape(-1, 2)
+        for i in range(dist.shape[0]):
+            j = dist[i].argmin()
+            if dist[i][j] < 1e16:
+                dist[:, j] = 1e18
+                matched_indices.append([i, j])
+        return np.array(matched_indices, np.int32).reshape(-1, 2)
