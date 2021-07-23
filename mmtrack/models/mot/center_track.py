@@ -19,6 +19,7 @@ class CenterTrack(BaseMultiObjectTracker):
             self.tracker = build_tracker(tracker)
 
         self.init_weights(pretrains)
+        # self.init_module('detector', pretrain.get('detector', False))  # todo
 
     def init_weights(self, pretrain):
         """Initialize the weights of the modules.
@@ -36,7 +37,7 @@ class CenterTrack(BaseMultiObjectTracker):
                     img,
                     img_metas,
                     rescale=False,
-                    public_bboxes=None,
+                    public_bboxes=None,  # todo check
                     **kwargs):
         """Test without augmentations.
 

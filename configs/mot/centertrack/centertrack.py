@@ -67,8 +67,8 @@ test_pipeline = [
                 keys=['img'])
         ])
 ]
-# data_root = '../data/MOT17/'
-data_root = '/home/akio/data/MOT/MOT17-mini/'
+data_root = '../data/MOT17/'
+# data_root = '/home/akio/data/MOT/MOT17-mini/'
 data = dict(
     samples_per_gpu=1,
     workers_per_gpu=2,
@@ -103,7 +103,8 @@ data = dict(
 model = dict(
     type='CenterTrack',
     pretrains=dict(
-        detector='/home/akio/dev/mmtracking/new_model.pth'
+        # detector='/home/akio/dev/mmtracking/new_model.pth'
+        detector='../new_model.pth'
     ),
     detector=dict(
         type='CTDetector',
@@ -121,7 +122,8 @@ model = dict(
             loss_center_heatmap=dict(type='GaussianFocalLoss', loss_weight=1.0),
             loss_wh=dict(type='L1Loss', loss_weight=0.1),
             loss_offset=dict(type='L1Loss', loss_weight=1.0),
-            loss_tracking=dict(type='L1Loss', loss_weight=1.0)),
+            loss_tracking=dict(type='L1Loss', loss_weight=1.0),
+            loss_ltrb_amodal=dict(type='L1Loss', loss_weight=0.1)),
         test_cfg=dict(topk=100, local_maximum_kernel=3, max_per_img=100)
     ),
     tracker=dict(type='CTTracker')

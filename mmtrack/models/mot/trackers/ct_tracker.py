@@ -10,13 +10,13 @@ class CTTracker(BaseTracker):
         super(CTTracker, self).__init__(**kwargs)
 
     def track(self,
-              img,
-              img_metas,
+              img,  # todo
+              img_metas,  # todo
               bboxes,
               bboxes_with_motion,
               labels,
               frame_id,
-              rescale,
+              rescale,  # todo
               **kwargs):
         if self.empty or bboxes.size(0) == 0:
             num_new_tracks = bboxes.size(0)
