@@ -8,23 +8,22 @@ img_norm_cfg = dict(
 train_pipeline = [
     dict(type='LoadMultiImagesFromFile', to_float32=True),
     dict(type='SeqLoadAnnotations', with_bbox=True, with_track=True),
-    dict(
-        type='SeqResize',
-        img_scale=(1088, 1088),
-        share_params=True,
-        ratio_range=(0.8, 1.2),
-        keep_ratio=True,
-        bbox_clip_border=False),
     dict(type='SeqPhotoMetricDistortion', share_params=True),
     dict(
         type='SeqRandomCenterCropPad',
         share_params=True,
-        crop_size=(512, 512),
+        crop_size=(544, 960),
         ratios=(0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3),
         mean=[0, 0, 0],
         std=[1, 1, 1],
         to_rgb=True,
-        test_pad_mode=None),
+        test_pad_mode=None,
+        bbox_clip_border=False),
+    dict(
+        type='SeqResize',
+        img_scale=(544, 960),
+        share_params=True,
+        keep_ratio=True),
     dict(type='SeqRandomFlip', share_params=True, flip_ratio=0.5),
     dict(type='SeqNormalize', **img_norm_cfg),
     dict(type='SeqPad', size_divisor=32),
@@ -41,7 +40,7 @@ test_pipeline = [
     dict(type='LoadImageFromFile', to_float32=True),
     dict(
         type='MultiScaleFlipAug',
-        scale_factor=1.0,
+        img_scale=[(544, 960)],
         flip=False,
         transforms=[
             dict(type='Resize', keep_ratio=True),
@@ -54,9 +53,11 @@ test_pipeline = [
                 to_rgb=True,
                 test_mode=True,
                 test_pad_mode=['logical_or', 31],
-                test_pad_add_pix=1),
+                test_pad_add_pix=1,
+                bbox_clip_border=False),
             dict(type='RandomFlip'),
             dict(type='Normalize', **img_norm_cfg),
+            dict(type='Pad', size_divisor=32),
             dict(type='ImageToTensor', keys=['img']),
             dict(
                 type='VideoCollect',
@@ -69,7 +70,7 @@ test_pipeline = [
 # data_root = '../data/MOT17/'
 data_root = '/home/akio/data/MOT/MOT17-mini/'
 data = dict(
-    samples_per_gpu=4,
+    samples_per_gpu=1,
     workers_per_gpu=2,
     train=dict(
         type=dataset_type,
