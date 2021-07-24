@@ -4,7 +4,7 @@ _base_ = [
 # dataset settings
 dataset_type = 'MOTChallengeDataset'
 img_norm_cfg = dict(
-    mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
+    mean=[104.01362,114.034225,119.916595], std=[73.60277,69.89082,70.91508], to_rgb=True)
 train_pipeline = [
     dict(type='LoadMultiImagesFromFile', to_float32=True),
     dict(type='SeqLoadAnnotations', with_bbox=True, with_track=True),
@@ -43,7 +43,6 @@ test_pipeline = [
         img_scale=[(544, 960)],
         flip=False,
         transforms=[
-            dict(type='Resize', keep_ratio=True),
             dict(
                 type='RandomCenterCropPad',
                 ratios=None,
@@ -55,6 +54,7 @@ test_pipeline = [
                 test_pad_mode=['logical_or', 31],
                 test_pad_add_pix=1,
                 bbox_clip_border=False),
+            dict(type='Resize', keep_ratio=True),
             dict(type='RandomFlip'),
             dict(type='Normalize', **img_norm_cfg),
             dict(type='Pad', size_divisor=32),
@@ -103,8 +103,8 @@ data = dict(
 model = dict(
     type='CenterTrack',
     pretrains=dict(
-        # detector='/home/akio/dev/mmtracking/new_model.pth'
-        detector='../new_model.pth'
+        detector='/home/akio/dev/mmtracking/new_model.pth'
+        # detector='../new_model.pth'
     ),
     detector=dict(
         type='CTDetector',
