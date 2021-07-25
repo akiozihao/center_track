@@ -2,24 +2,24 @@ from collections import OrderedDict
 
 import torch
 
-ignore = [
-    'neck.dla_up.ida_0.proj_1.conv.bias',
-    'neck.dla_up.ida_0.node_1.conv.bias',
-    'neck.dla_up.ida_1.proj_1.conv.bias',
-    'neck.dla_up.ida_1.node_1.conv.bias',
-    'neck.dla_up.ida_1.proj_2.conv.bias',
-    'neck.dla_up.ida_1.node_2.conv.bias',
-    'neck.dla_up.ida_2.proj_1.conv.bias',
-    'neck.dla_up.ida_2.node_1.conv.bias',
-    'neck.dla_up.ida_2.proj_2.conv.bias',
-    'neck.dla_up.ida_2.node_2.conv.bias',
-    'neck.dla_up.ida_2.proj_3.conv.bias',
-    'neck.dla_up.ida_2.node_3.conv.bias',
-    'neck.ida_up.proj_1.conv.bias',
-    'neck.ida_up.node_1.conv.bias',
-    'neck.ida_up.proj_2.conv.bias',
-    'neck.ida_up.node_2.conv.bias',
-]
+# ignore = [
+#     'neck.dla_up.ida_0.proj_1.conv.bias',
+#     'neck.dla_up.ida_0.node_1.conv.bias',
+#     'neck.dla_up.ida_1.proj_1.conv.bias',
+#     'neck.dla_up.ida_1.node_1.conv.bias',
+#     'neck.dla_up.ida_1.proj_2.conv.bias',
+#     'neck.dla_up.ida_1.node_2.conv.bias',
+#     'neck.dla_up.ida_2.proj_1.conv.bias',
+#     'neck.dla_up.ida_2.node_1.conv.bias',
+#     'neck.dla_up.ida_2.proj_2.conv.bias',
+#     'neck.dla_up.ida_2.node_2.conv.bias',
+#     'neck.dla_up.ida_2.proj_3.conv.bias',
+#     'neck.dla_up.ida_2.node_3.conv.bias',
+#     'neck.ida_up.proj_1.conv.bias',
+#     'neck.ida_up.node_1.conv.bias',
+#     'neck.ida_up.proj_2.conv.bias',
+#     'neck.ida_up.node_2.conv.bias',
+# ]
 
 
 def transfer_pth(source_pth):
@@ -35,8 +35,8 @@ def transfer_pth(source_pth):
             nk, nv = trans_neck(k, v)
         elif type == 'hm' or type == 'reg' or type == 'wh' or type == 'tracking' or type == 'ltrb_amodal':
             nk, nv = trans_head(k, v)
-        if nk not in ignore:
-            dst_state_dict[nk] = nv
+        # if nk not in ignore:
+        dst_state_dict[nk] = nv
     for k, v in source.items():
         if k == 'state_dict':
             continue
@@ -71,18 +71,32 @@ def trans_base(k, v):
 
 def trans_neck(k, v):
     l_k = k.split('.')
+    if l_k[0] == 'dla_up':
+        l_k = trans_dla(k)
+    elif l_k[0] == 'ida_up':
+        l_k = trans_ida(k)
+    l_k.insert(0, 'neck')
+    return '.'.join(str(i) for i in l_k), v
+
+
+def trans_ida(k):
+    l_k = k.split('.')
     if l_k[2] == 'actf':
         l_k[2] = 'bn'
         l_k.pop(-2)
-    if len(l_k) > 3 and l_k[3] == 'conv_offset_mask':
+    if  len(l_k) > 3 and l_k[3] == 'conv_offset_mask':
         l_k[3] = 'conv_offset'
+    return l_k
+
+
+def trans_dla(k):
+    l_k = k.split('.')
     if len(l_k) > 3 and l_k[3] == 'actf':
         l_k[3] = 'bn'
         l_k.pop(-2)
     if len(l_k) > 4 and l_k[4] == 'conv_offset_mask':
         l_k[4] = 'conv_offset'
-    l_k.insert(0, 'neck')
-    return '.'.join(str(i) for i in l_k), v
+    return l_k
 
 
 def trans_head(k, v):
@@ -100,6 +114,9 @@ def trans_head(k, v):
     l_k.insert(0, 'bbox_head')
     return '.'.join(str(i) for i in l_k), v
 
-
 new_pth_info = transfer_pth('/home/akio/dev/centertrack_origin/models/mot17_fulltrain.pth')
+
+# for k,v in new_pth_info['state_dict'].items():
+#     print(k,v.shape)
+
 torch.save(new_pth_info, 'new_model.pth')
