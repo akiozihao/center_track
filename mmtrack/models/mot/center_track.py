@@ -56,11 +56,17 @@ class CenterTrack(BaseMultiObjectTracker):
         Returns:
             dict[str : list(ndarray)]: The tracking results.
         """
+        if not self.training:
+            self.detector.head.fp_disturb = .0
+            self.detector.head.lost_disturb = .0
+            self.detector.head.hm_disturb = .0
+
         frame_id = img_metas[0]['frame_id']
         if frame_id == 0:
             self.tracker.reset()
             self.ref_bboxes = None
-            self.ref_hm = None
+            n, c, h, w = img.shape
+            self.ref_hm = torch.zeros((n, 1, h, w), dtype=img.dtype, device=img.device)
             self.ref_img = img.clone()
             self.pre_labels = None
         else:
