@@ -57,9 +57,9 @@ class CenterTrack(BaseMultiObjectTracker):
             dict[str : list(ndarray)]: The tracking results.
         """
         if not self.training:
-            self.detector.head.fp_disturb = .0
-            self.detector.head.lost_disturb = .0
-            self.detector.head.hm_disturb = .0
+            self.detector.bbox_head.fp_disturb = .0
+            self.detector.bbox_head.lost_disturb = .0
+            self.detector.bbox_head.hm_disturb = .0
 
         frame_id = img_metas[0]['frame_id']
         if frame_id == 0:

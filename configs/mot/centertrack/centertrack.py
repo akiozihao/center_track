@@ -124,7 +124,8 @@ model = dict(
             loss_offset=dict(type='L1Loss', loss_weight=1.0),
             loss_tracking=dict(type='L1Loss', loss_weight=1.0),
             loss_ltrb_amodal=dict(type='L1Loss', loss_weight=0.1)),
-        test_cfg=dict(topk=100, local_maximum_kernel=3, max_per_img=100)
+        test_cfg=dict(topk=100, local_maximum_kernel=3, max_per_img=100),
+        train_cfg=dict(fp_disturb=0.1, lost_disturb=0.4, hm_disturb=0.05)
     ),
     tracker=dict(type='CTTracker')
 )
