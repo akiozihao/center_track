@@ -16,6 +16,7 @@ class CTTracker(BaseTracker):
         self.pre_centers = None
         self.pre_bboxes = None
         self.pre_labels = None
+        self.pre_ids = None
         self.obj_score_thr = obj_score_thr
 
     def reset(self):
@@ -24,6 +25,7 @@ class CTTracker(BaseTracker):
         self.pre_centers = None
         self.pre_bboxes = None
         self.pre_labels = None
+        self.pre_ids = None
 
     def track(self,
               img,  # todo
@@ -50,6 +52,7 @@ class CTTracker(BaseTracker):
             self.pre_bboxes = bboxes
             self.pre_centers = self._xyxy2center(bboxes)
             self.pre_labels = labels
+            self.pre_ids = ids
         else:
             ids = torch.full((bboxes.size(0),), -1, dtype=torch.long)
             M = self.pre_bboxes.shape[0]
@@ -67,7 +70,7 @@ class CTTracker(BaseTracker):
             matched_indices = self._greedy_assignment(dist)
 
             for i in range(matched_indices.shape[0]):
-                ids[matched_indices[i][0]] = matched_indices[i][1]
+                ids[matched_indices[i][0]] = self.pre_ids[matched_indices[i][1]]
 
             new_track_inds = ids == -1
             ids[new_track_inds] = torch.arange(
@@ -79,6 +82,7 @@ class CTTracker(BaseTracker):
             self.pre_centers = det_centers
             self.pre_bboxes = bboxes
             self.pre_labels = labels
+            self.pre_ids = ids
         self.update(
             ids=ids,
             bboxes=bboxes,
