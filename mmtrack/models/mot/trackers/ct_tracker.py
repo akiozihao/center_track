@@ -28,13 +28,13 @@ class CTTracker(BaseTracker):
         self.pre_ids = None
 
     def track(self,
-              img,  # todo
-              img_metas,  # todo
+              img,
+              img_metas,
               bboxes,
               bboxes_with_motion,
               labels,
               frame_id,
-              rescale,  # todo
+              rescale,
               **kwargs):
         valid_inds = bboxes[:, -1] > self.obj_score_thr
         bboxes = bboxes[valid_inds]
@@ -61,7 +61,9 @@ class CTTracker(BaseTracker):
                          (self.pre_bboxes[:, 2] - self.pre_bboxes[:, 0])  # M
             item_size = (bboxes[:, 3] - bboxes[:, 1]) * (bboxes[:, 2] - bboxes[:, 0])  # N
             det_centers = self._xyxy2center(bboxes_with_motion)
-            dist = torch.cdist(det_centers, self.pre_centers, 2)
+            # dist = torch.cdist(det_centers, self.pre_centers, 2)
+            dist = (((self.pre_centers.reshape(1, -1, 2) - \
+                     det_centers.reshape(-1, 1, 2)) ** 2).sum(axis=2))
             # invalid
             invalid = ((dist > track_size.reshape(1, M)) + \
                        (dist > item_size.reshape(N, 1)) + \
@@ -69,9 +71,9 @@ class CTTracker(BaseTracker):
             dist = dist + invalid * 1e18
             matched_indices = self._greedy_assignment(dist)
 
-            for i in range(matched_indices.shape[0]):
-                ids[matched_indices[i][0]] = self.pre_ids[matched_indices[i][1]]
-
+            # for i in range(matched_indices.shape[0]):
+            #     ids[matched_indices[i][0]] = self.pre_ids[matched_indices[i][1]]
+            ids[matched_indices[:,0]] = self.pre_ids[matched_indices[:,1]]
             new_track_inds = ids == -1
             ids[new_track_inds] = torch.arange(
                 self.num_tracks,
@@ -79,6 +81,10 @@ class CTTracker(BaseTracker):
                 dtype=torch.long)
             self.num_tracks += new_track_inds.sum()
             self.pre_img = img
+            det_centers = det_centers[~invalid[:, 0]]
+            bboxes = bboxes[~invalid[:, 0]]
+            labels = labels[~invalid[:, 0]]
+            ids = ids[~invalid[:, 0]]
             self.pre_centers = det_centers
             self.pre_bboxes = bboxes
             self.pre_labels = labels
