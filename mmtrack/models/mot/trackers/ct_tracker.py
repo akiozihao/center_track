@@ -60,10 +60,11 @@ class CTTracker(BaseTracker):
             track_size = (self.pre_bboxes[:, 3] - self.pre_bboxes[:, 1]) * \
                          (self.pre_bboxes[:, 2] - self.pre_bboxes[:, 0])  # M
             item_size = (bboxes[:, 3] - bboxes[:, 1]) * (bboxes[:, 2] - bboxes[:, 0])  # N
-            det_centers = self._xyxy2center(bboxes_with_motion)
+            det_centers_with_motion = self._xyxy2center(bboxes_with_motion)
+            det_centers = self._xyxy2center(bboxes)
             # dist = torch.cdist(det_centers, self.pre_centers, 2)
             dist = (((self.pre_centers.reshape(1, -1, 2) - \
-                     det_centers.reshape(-1, 1, 2)) ** 2).sum(axis=2))
+                      det_centers_with_motion.reshape(-1, 1, 2)) ** 2).sum(axis=2))
             # invalid
             invalid = ((dist > track_size.reshape(1, M)) + \
                        (dist > item_size.reshape(N, 1)) + \
@@ -73,7 +74,7 @@ class CTTracker(BaseTracker):
 
             # for i in range(matched_indices.shape[0]):
             #     ids[matched_indices[i][0]] = self.pre_ids[matched_indices[i][1]]
-            ids[matched_indices[:,0]] = self.pre_ids[matched_indices[:,1]]
+            ids[matched_indices[:, 0]] = self.pre_ids[matched_indices[:, 1]]
             new_track_inds = ids == -1
             ids[new_track_inds] = torch.arange(
                 self.num_tracks,
