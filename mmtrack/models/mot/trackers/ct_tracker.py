@@ -41,7 +41,7 @@ class CTTracker(BaseTracker):
         bboxes_with_motion = bboxes_with_motion[valid_inds]
         labels = labels[valid_inds]
 
-        if self.empty or bboxes.size(0) == 0:
+        if self.empty or bboxes.size(0) == 0 or self.pre_bboxes.shape[0] == 0:
             num_new_tracks = bboxes.size(0)
             ids = torch.arange(
                 self.num_tracks,
@@ -81,6 +81,7 @@ class CTTracker(BaseTracker):
                 dtype=torch.long)
             self.num_tracks += new_track_inds.sum()
             self.pre_img = img
+            # print(~invalid[:,0])
             det_centers = det_centers[~invalid[:, 0]]
             bboxes = bboxes[~invalid[:, 0]]
             labels = labels[~invalid[:, 0]]

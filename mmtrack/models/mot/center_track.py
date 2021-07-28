@@ -64,13 +64,12 @@ class CenterTrack(BaseMultiObjectTracker):
         frame_id = img_metas[0]['frame_id']
         if frame_id == 0:
             self.tracker.reset()
-            self.ref_bboxes = None
             n, c, h, w = img.shape
-            self.ref_hm = torch.zeros((n, 1, h, w), dtype=img.dtype, device=img.device)
+            self.ref_hm = None
             self.ref_img = img.clone()
-            self.pre_labels = None
         else:
-            self.ref_hm = self.detector._build_test_hm(self.ref_img, self.ref_bboxes)
+            # self.ref_hm = self.detector._build_test_hm(self.ref_img, self.ref_bboxes)
+            self.ref_hm = None
         # todo check this
         batch_input_shape = tuple(img[0].size()[-2:])
         img_metas[0]['batch_input_shape'] = batch_input_shape
@@ -86,8 +85,6 @@ class CenterTrack(BaseMultiObjectTracker):
         gt_bboxes_with_motion = result_list[0][2]
         num_classes = self.detector.bbox_head.num_classes
         self.ref_img = img
-        self.ref_bboxes = det_bboxes
-        self.ref_labels = det_labels
 
         bboxes, labels, ids = self.tracker.track(
             img=img,
