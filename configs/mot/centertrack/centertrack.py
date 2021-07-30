@@ -53,8 +53,8 @@ test_pipeline = [
                 to_rgb=True,
                 test_mode=True,
                 # test_pad_mode=['logical_or', 31],
+                # test_pad_add_pix=1,
                 test_pad_mode=['size_divisor', 32],
-                test_pad_add_pix=1,
                 bbox_clip_border=False),
             dict(type='Resize', keep_ratio=True),
             dict(type='RandomFlip'),
@@ -72,7 +72,7 @@ test_pipeline = [
 data_root = '../data/MOT17/'
 # data_root = '/home/akio/data/MOT/MOT17-mini/'
 data = dict(
-    samples_per_gpu=1,
+    samples_per_gpu=2,
     workers_per_gpu=2,
     train=dict(
         _delete_=True,
@@ -135,6 +135,8 @@ model = dict(
 # optimizer
 optimizer = dict(type='SGD', lr=0.0025, momentum=0.9, weight_decay=0.0001)
 # optimizer_config = dict(grad_clip=None)
+optimizer_config = dict(
+    _delete_=True, grad_clip=dict(max_norm=35, norm_type=2))
 
 lr_config = dict(
     policy='step',
