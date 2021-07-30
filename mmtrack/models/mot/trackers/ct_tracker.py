@@ -12,20 +12,7 @@ class CTTracker(BaseTracker):
                  obj_score_thr=0.3,
                  **kwargs):
         super(CTTracker, self).__init__(**kwargs)
-        self.pre_img = None
-        self.pre_centers = None
-        self.pre_bboxes = None
-        self.pre_labels = None
-        self.pre_ids = None
         self.obj_score_thr = obj_score_thr
-
-    def reset(self):
-        super(CTTracker, self).reset()
-        self.pre_img = None
-        self.pre_centers = None
-        self.pre_bboxes = None
-        self.pre_labels = None
-        self.pre_ids = None
 
     def track(self,
               img,
@@ -41,29 +28,24 @@ class CTTracker(BaseTracker):
         bboxes_with_motion = bboxes_with_motion[valid_inds]
         labels = labels[valid_inds]
 
-        if self.empty or bboxes.size(0) == 0 or self.pre_bboxes.shape[0] == 0:
+        pre_bboxes = self.pre_bboxes
+        if self.empty or bboxes.size(0) == 0 or pre_bboxes is None:
             num_new_tracks = bboxes.size(0)
             ids = torch.arange(
                 self.num_tracks,
                 self.num_tracks + num_new_tracks,
                 dtype=torch.long)
             self.num_tracks += num_new_tracks
-            self.pre_img = img
-            self.pre_bboxes = bboxes
-            self.pre_centers = self._xyxy2center(bboxes)
-            self.pre_labels = labels
-            self.pre_ids = ids
         else:
             ids = torch.full((bboxes.size(0),), -1, dtype=torch.long)
-            M = self.pre_bboxes.shape[0]
+            M = pre_bboxes.shape[0]
             N = bboxes.shape[0]
-            track_size = (self.pre_bboxes[:, 3] - self.pre_bboxes[:, 1]) * \
-                         (self.pre_bboxes[:, 2] - self.pre_bboxes[:, 0])  # M
+            track_size = (pre_bboxes[:, 3] - pre_bboxes[:, 1]) * \
+                         (pre_bboxes[:, 2] - pre_bboxes[:, 0])  # M
             item_size = (bboxes[:, 3] - bboxes[:, 1]) * (bboxes[:, 2] - bboxes[:, 0])  # N
             det_centers_with_motion = self._xyxy2center(bboxes_with_motion)
-            det_centers = self._xyxy2center(bboxes)
             # dist = torch.cdist(det_centers, self.pre_centers, 2)
-            dist = (((self.pre_centers.reshape(1, -1, 2) - \
+            dist = (((self.pre_cts.reshape(1, -1, 2) - \
                       det_centers_with_motion.reshape(-1, 1, 2)) ** 2).sum(axis=2))
             # invalid
             invalid = ((dist > track_size.reshape(1, M)) + \
@@ -71,9 +53,7 @@ class CTTracker(BaseTracker):
                        (labels.reshape(N, 1) != self.pre_labels.reshape(1, M))) > 0
             dist = dist + invalid * 1e18
             matched_indices = self._greedy_assignment(dist)
-
-            # for i in range(matched_indices.shape[0]):
-            #     ids[matched_indices[i][0]] = self.pre_ids[matched_indices[i][1]]
+            # pre_ids = self.pre_ids
             ids[matched_indices[:, 0]] = self.pre_ids[matched_indices[:, 1]]
             new_track_inds = ids == -1
             ids[new_track_inds] = torch.arange(
@@ -81,17 +61,41 @@ class CTTracker(BaseTracker):
                 self.num_tracks + new_track_inds.sum(),
                 dtype=torch.long)
             self.num_tracks += new_track_inds.sum()
-            self.pre_img = img
-            self.pre_centers = det_centers
-            self.pre_bboxes = bboxes
-            self.pre_labels = labels
-            self.pre_ids = ids
         self.update(
             ids=ids,
             bboxes=bboxes,
+            cts=self._xyxy2center(bboxes),
             labels=labels,
             frame_ids=frame_id)
         return bboxes, labels, ids
+
+    @property
+    def pre_bboxes(self):
+        bboxes = [track['bboxes'][-1] for id, track in self.tracks.items()]
+        if len(bboxes) == 0:
+            return None
+        return torch.cat(bboxes, 0)
+
+    @property
+    def pre_cts(self):
+        cts = [track['cts'][-1] for id, track in self.tracks.items()]
+        if len(cts) == 0:
+            return None
+        return torch.cat(cts, 0)
+
+    @property
+    def pre_labels(self):
+        labels = [track['labels'][-1] for id, track in self.tracks.items()]
+        if len(labels) == 0:
+            return None
+        return torch.cat(labels, 0)
+
+    @property
+    def pre_ids(self):
+        ids = [track['ids'][-1] for id, track in self.tracks.items()]
+        if len(ids) == 0:
+            return None
+        return torch.cat(ids, 0)
 
     def _xyxy2center(self, bbox):  # shape (N,5)
         ctx = bbox[:, 0] + (bbox[:, 2] - bbox[:, 0]) / 2
