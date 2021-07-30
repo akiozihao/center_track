@@ -149,10 +149,10 @@ lr_config = dict(
     warmup_ratio=1.0 / 1000,
     step=[18, 24])  # the real step is [18*5, 24*5]
 
-runner = dict(type='EpochBasedRunner', max_epochs=28)  # the real epoch is 28*5=140
+# runner = dict(type='EpochBasedRunner', max_epochs=28)  # the real epoch is 28*5=140
 
 # runtime settings
-total_epochs = 4
+total_epochs = 28
 evaluation = dict(metric=['bbox', 'track'], interval=1)
 search_metrics = ['MOTA', 'IDF1', 'FN', 'FP', 'IDs', 'MT', 'ML']
 
