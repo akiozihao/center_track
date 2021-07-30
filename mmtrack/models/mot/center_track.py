@@ -5,6 +5,7 @@ from ..builder import MODELS, build_tracker, build_detector
 from .base import BaseMultiObjectTracker
 import torch
 
+
 @MODELS.register_module()
 class CenterTrack(BaseMultiObjectTracker):
     def __init__(self,
@@ -77,7 +78,14 @@ class CenterTrack(BaseMultiObjectTracker):
                 self.ref_hm = torch.zeros((n, 1, h, w), dtype=img.dtype, device=img.device)
         else:
             if self.use_pre_hm:
-                self.ref_hm = self.detector._build_test_hm(self.ref_img, self.ref_bboxes)
+                if self.ref_bboxes.shape[0] == 0:
+                    n, c, h, w = img.shape
+                    self.ref_hm = torch.zeros((n, 1, h, w), dtype=img.dtype, device=img.device)
+                else:
+                    if self.ref_bboxes.shape[0] == 0:
+                        n, c, h, w = img.shape
+                        self.ref_hm = torch.zeros((n, 1, h, w), dtype=img.dtype, device=img.device)
+                    self.ref_hm = self.detector._build_test_hm(self.ref_img, self.ref_bboxes)
 
         # todo check this
         batch_input_shape = tuple(img[0].size()[-2:])
@@ -103,7 +111,7 @@ class CenterTrack(BaseMultiObjectTracker):
             frame_id=frame_id,
             rescale=rescale,
             **kwargs)
-        self.ref_bboxes = bboxes[bboxes[:,-1] >= self.pre_thresh]
+        self.ref_bboxes = bboxes[bboxes[:, -1] >= self.pre_thresh]
         track_result = track2result(bboxes, labels, ids, num_classes)
         bbox_result = bbox2result(det_bboxes, det_labels, num_classes)
         return dict(bbox_results=bbox_result, track_results=track_result)
