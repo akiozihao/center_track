@@ -75,16 +75,20 @@ data = dict(
     samples_per_gpu=1,
     workers_per_gpu=2,
     train=dict(
-        type=dataset_type,
-        visibility_thr=-1,
-        ann_file=data_root + 'annotations/half-train_cocoformat.json',
-        img_prefix=data_root + 'train',
-        ref_img_sampler=dict(
-            num_ref_imgs=1,
-            frame_range=3,
-            filter_key_img=True,
-            method='uniform'),
-        pipeline=train_pipeline),
+        _delete_=True,
+        type='RepeatDataset',
+        times=5,
+        dataset=dict(
+            type=dataset_type,
+            visibility_thr=-1,
+            ann_file=data_root + 'annotations/half-train_cocoformat.json',
+            img_prefix=data_root + 'train',
+            ref_img_sampler=dict(
+                num_ref_imgs=1,
+                frame_range=3,
+                filter_key_img=True,
+                method='uniform'),
+            pipeline=train_pipeline)),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/half-val_cocoformat.json',
@@ -151,3 +155,6 @@ runner = dict(type='EpochBasedRunner', max_epochs=28)  # the real epoch is 28*5=
 total_epochs = 4
 evaluation = dict(metric=['bbox', 'track'], interval=1)
 search_metrics = ['MOTA', 'IDF1', 'FN', 'FP', 'IDs', 'MT', 'ML']
+
+# For distributed training
+find_unused_parameters = True
