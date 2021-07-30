@@ -10,7 +10,10 @@ class CenterTrack(BaseMultiObjectTracker):
     def __init__(self,
                  detector=None,
                  tracker=None,
-                 pretrains=None):
+                 pretrains=None,
+                 pre_thresh=0.5,
+                 use_pre_hm=True
+                 ):
         super(CenterTrack, self).__init__()
         if detector is not None:
             self.detector = build_detector(detector)
@@ -20,6 +23,8 @@ class CenterTrack(BaseMultiObjectTracker):
 
         self.init_weights(pretrains)
         # self.init_module('detector', pretrain.get('detector', False))  # todo
+        self.pre_thresh = pre_thresh
+        self.use_pre_hm = use_pre_hm
 
     def init_weights(self, pretrain):
         """Initialize the weights of the modules.
@@ -62,16 +67,17 @@ class CenterTrack(BaseMultiObjectTracker):
             self.detector.bbox_head.hm_disturb = .0
 
         frame_id = img_metas[0]['frame_id']
+
+        self.ref_hm = None
         if frame_id == 0:
             self.tracker.reset()
-            # n, c, h, w = img.shape
-            # self.ref_hm = torch.zeros((n, 1, h, w), dtype=img.dtype, device=img.device)
-            self.ref_hm = None
             self.ref_img = img.clone()
+            if self.use_pre_hm:
+                n, c, h, w = img.shape
+                self.ref_hm = torch.zeros((n, 1, h, w), dtype=img.dtype, device=img.device)
         else:
-            # self.ref_hm = self.detector._build_test_hm(self.ref_img, self.ref_bboxes)
-            self.ref_hm = None
-        self.detector.bbox_head.use_ltrb = True
+            if self.use_pre_hm:
+                self.ref_hm = self.detector._build_test_hm(self.ref_img, self.ref_bboxes)
 
         # todo check this
         batch_input_shape = tuple(img[0].size()[-2:])
@@ -88,7 +94,6 @@ class CenterTrack(BaseMultiObjectTracker):
         gt_bboxes_with_motion = result_list[0][2]
         num_classes = self.detector.bbox_head.num_classes
         self.ref_img = img
-
         bboxes, labels, ids = self.tracker.track(
             img=img,
             img_metas=img_metas,
@@ -98,7 +103,7 @@ class CenterTrack(BaseMultiObjectTracker):
             frame_id=frame_id,
             rescale=rescale,
             **kwargs)
-
+        self.ref_bboxes = bboxes[bboxes[:-1] >= self.pre_thresh]
         track_result = track2result(bboxes, labels, ids, num_classes)
         bbox_result = bbox2result(det_bboxes, det_labels, num_classes)
         return dict(bbox_results=bbox_result, track_results=track_result)
