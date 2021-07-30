@@ -132,12 +132,6 @@ model = dict(
     tracker=dict(type='CTTracker')
 )
 
-# train_cfg = None,  # todo check this
-# test_cfg = dict(topk=100, local_maximum_kernel=3, max_per_img=100))  # todo check this
-# We fixed the incorrect img_norm_cfg problem in the source code.
-img_norm_cfg = dict(
-    mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
-
 # optimizer
 optimizer = dict(type='SGD', lr=0.0025, momentum=0.9, weight_decay=0.0001)
 # optimizer_config = dict(grad_clip=None)
