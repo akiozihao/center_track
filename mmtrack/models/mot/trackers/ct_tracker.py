@@ -9,8 +9,7 @@ import torch
 @TRACKERS.register_module()
 class CTTracker(BaseTracker):
     def __init__(self,
-                 # obj_score_thr=0.3,
-                 obj_score_thr=0.4,
+                 obj_score_thr=0.3,
                  **kwargs):
         super(CTTracker, self).__init__(**kwargs)
         self.pre_img = None
@@ -83,11 +82,6 @@ class CTTracker(BaseTracker):
                 dtype=torch.long)
             self.num_tracks += new_track_inds.sum()
             self.pre_img = img
-            # print(~invalid[:,0])
-            det_centers = det_centers[~invalid[:, 0]]
-            bboxes = bboxes[~invalid[:, 0]]
-            labels = labels[~invalid[:, 0]]
-            ids = ids[~invalid[:, 0]]
             self.pre_centers = det_centers
             self.pre_bboxes = bboxes
             self.pre_labels = labels
