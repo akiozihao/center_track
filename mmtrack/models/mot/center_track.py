@@ -103,7 +103,7 @@ class CenterTrack(BaseMultiObjectTracker):
             frame_id=frame_id,
             rescale=rescale,
             **kwargs)
-        self.ref_bboxes = bboxes[bboxes[:-1] >= self.pre_thresh]
+        self.ref_bboxes = bboxes[bboxes[:,-1] >= self.pre_thresh]
         track_result = track2result(bboxes, labels, ids, num_classes)
         bbox_result = bbox2result(det_bboxes, det_labels, num_classes)
         return dict(bbox_results=bbox_result, track_results=track_result)
