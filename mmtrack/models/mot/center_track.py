@@ -64,18 +64,21 @@ class CenterTrack(BaseMultiObjectTracker):
         frame_id = img_metas[0]['frame_id']
         if frame_id == 0:
             self.tracker.reset()
-            n, c, h, w = img.shape
+            # n, c, h, w = img.shape
+            # self.ref_hm = torch.zeros((n, 1, h, w), dtype=img.dtype, device=img.device)
             self.ref_hm = None
             self.ref_img = img.clone()
         else:
             # self.ref_hm = self.detector._build_test_hm(self.ref_img, self.ref_bboxes)
             self.ref_hm = None
+        self.detector.bbox_head.use_ltrb = True
+
         # todo check this
         batch_input_shape = tuple(img[0].size()[-2:])
         img_metas[0]['batch_input_shape'] = batch_input_shape
         x = self.detector.extract_feat(img, self.ref_img, self.ref_hm)
         center_heatmap_pred, wh_pred, offset_pred, tracking_pred, ltrb_amodal_pred = self.detector.bbox_head(x)
-        outs = [center_heatmap_pred, wh_pred, offset_pred, tracking_pred,ltrb_amodal_pred]
+        outs = [center_heatmap_pred, wh_pred, offset_pred, tracking_pred, ltrb_amodal_pred]
         result_list = self.detector.bbox_head.get_bboxes(
             # todo Are outs always tensors?
             *[[tensor] for tensor in outs], img_metas=img_metas, rescale=rescale)

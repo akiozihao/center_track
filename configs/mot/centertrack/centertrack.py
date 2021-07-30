@@ -4,7 +4,7 @@ _base_ = [
 # dataset settings
 dataset_type = 'MOTChallengeDataset'
 img_norm_cfg = dict(
-    mean=[104.01362,114.034225,119.916595], std=[73.60277,69.89082,70.91508], to_rgb=True)
+    mean=[104.01362,114.034225,119.916595], std=[73.60277,69.89082,70.91508], to_rgb=False)
 train_pipeline = [
     dict(type='LoadMultiImagesFromFile', to_float32=True),
     dict(type='SeqLoadAnnotations', with_bbox=True, with_track=True),
@@ -40,7 +40,8 @@ test_pipeline = [
     dict(type='LoadImageFromFile', to_float32=True),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=[(544, 960)],
+        # img_scale=[(544, 960)],
+        scale_factor=1.0,
         flip=False,
         transforms=[
             dict(
@@ -51,7 +52,8 @@ test_pipeline = [
                 std=[1, 1, 1],
                 to_rgb=True,
                 test_mode=True,
-                test_pad_mode=['logical_or', 31],
+                # test_pad_mode=['logical_or', 31],
+                test_pad_mode=['size_divisor', 32],
                 test_pad_add_pix=1,
                 bbox_clip_border=False),
             dict(type='Resize', keep_ratio=True),
@@ -87,11 +89,7 @@ data = dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/half-val_cocoformat.json',
         img_prefix=data_root + 'train',
-        ref_img_sampler=dict(
-            num_ref_imgs=1,
-            frame_range=3,
-            filter_key_img=True,
-            method='uniform'),
+        ref_img_sampler=None,
         pipeline=test_pipeline),
     test=dict(
         type=dataset_type,
