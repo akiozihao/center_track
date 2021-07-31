@@ -9,7 +9,7 @@ import torch
 @TRACKERS.register_module()
 class CTTracker(BaseTracker):
     def __init__(self,
-                 obj_score_thr=0.3,
+                 obj_score_thr=0.4,
                  **kwargs):
         super(CTTracker, self).__init__(**kwargs)
         self.obj_score_thr = obj_score_thr
