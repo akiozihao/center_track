@@ -12,8 +12,8 @@ class CenterTrack(BaseMultiObjectTracker):
                  detector=None,
                  tracker=None,
                  pretrains=None,
-                 pre_thresh=0.5,
-                 use_pre_hm=True
+                 new_thresh=0.5,
+                 use_pre_hm=False
                  ):
         super(CenterTrack, self).__init__()
         if detector is not None:
@@ -24,8 +24,10 @@ class CenterTrack(BaseMultiObjectTracker):
 
         self.init_weights(pretrains)
         # self.init_module('detector', pretrain.get('detector', False))  # todo
-        self.pre_thresh = pre_thresh
+        self.new_thresh = new_thresh
         self.use_pre_hm = use_pre_hm
+        if self.training:
+            self.use_pre_hm = True
 
     def init_weights(self, pretrain):
         """Initialize the weights of the modules.
@@ -108,7 +110,8 @@ class CenterTrack(BaseMultiObjectTracker):
             frame_id=frame_id,
             rescale=rescale,
             **kwargs)
-        self.ref_bboxes = bboxes[bboxes[:, -1] >= self.pre_thresh]
+        # self.ref_bboxes = bboxes[bboxes[:, -1] >= self.new_thresh]
+        self.ref_bboxes = self.tracker.pre_bboxes
         track_result = track2result(bboxes, labels, ids, num_classes)
         bbox_result = bbox2result(det_bboxes, det_labels, num_classes)
         return dict(bbox_results=bbox_result, track_results=track_result)

@@ -10,8 +10,9 @@ import torch
 class CTTracker(BaseTracker):
     def __init__(self,
                  obj_score_thr=0.4,
-                 **kwargs):
-        super(CTTracker, self).__init__(**kwargs)
+                 momentums=None,
+                 num_frames_retain=2):
+        super(CTTracker, self).__init__(momentums, num_frames_retain)
         self.obj_score_thr = obj_score_thr
 
     def track(self,
