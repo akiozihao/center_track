@@ -898,4 +898,14 @@ class SeqRandomCenterCropPad(RandomCenterCropPad):
             outs.append(super()._test_aug(result))
         return outs
 
-
+    def __call__(self, results):
+        img = results[0]['img']
+        assert img.dtype == np.float32, (
+            'RandomCenterCropPad needs the input image of dtype np.float32,'
+            ' please set "to_float32=True" in "LoadImageFromFile" pipeline')
+        h, w, c = img.shape
+        assert c == len(self.mean)
+        if self.test_mode:
+            return self._test_aug(results)
+        else:
+            return self._train_aug(results)
