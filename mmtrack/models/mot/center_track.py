@@ -1,9 +1,9 @@
+import torch
 from mmdet.core import bbox2result
 
 from mmtrack.core import track2result
-from ..builder import MODELS, build_tracker, build_detector
 from .base import BaseMultiObjectTracker
-import torch
+from ..builder import MODELS, build_tracker, build_detector
 
 
 @MODELS.register_module()
@@ -72,6 +72,7 @@ class CenterTrack(BaseMultiObjectTracker):
         frame_id = img_metas[0]['frame_id']
 
         self.ref_hm = None
+        self.ref_bboxes = self.tracker.pre_bboxes
         if frame_id == 0:
             self.tracker.reset()
             self.ref_img = img.clone()
@@ -80,7 +81,7 @@ class CenterTrack(BaseMultiObjectTracker):
                 self.ref_hm = torch.zeros((n, 1, h, w), dtype=img.dtype, device=img.device)
         else:
             if self.use_pre_hm:
-                if self.ref_bboxes.shape[0] == 0:
+                if self.ref_bboxes is None or self.ref_bboxes.shape[0] == 0:
                     n, c, h, w = img.shape
                     self.ref_hm = torch.zeros((n, 1, h, w), dtype=img.dtype, device=img.device)
                 else:
@@ -111,7 +112,6 @@ class CenterTrack(BaseMultiObjectTracker):
             rescale=rescale,
             **kwargs)
         # self.ref_bboxes = bboxes[bboxes[:, -1] >= self.new_thresh]
-        self.ref_bboxes = self.tracker.pre_bboxes
         track_result = track2result(bboxes, labels, ids, num_classes)
         bbox_result = bbox2result(det_bboxes, det_labels, num_classes)
         return dict(bbox_results=bbox_result, track_results=track_result)
