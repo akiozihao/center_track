@@ -26,8 +26,6 @@ class CenterTrack(BaseMultiObjectTracker):
         # self.init_module('detector', pretrain.get('detector', False))  # todo
         self.new_thresh = new_thresh
         self.use_pre_hm = use_pre_hm
-        if self.training:
-            self.use_pre_hm = True
 
     def init_weights(self, pretrain):
         """Initialize the weights of the modules.
@@ -81,7 +79,7 @@ class CenterTrack(BaseMultiObjectTracker):
                 self.ref_hm = torch.zeros((n, 1, h, w), dtype=img.dtype, device=img.device)
         else:
             if self.use_pre_hm:
-                if self.ref_bboxes is None or self.ref_bboxes.shape[0] == 0:
+                if self.ref_bboxes.shape[0] == 0:
                     n, c, h, w = img.shape
                     self.ref_hm = torch.zeros((n, 1, h, w), dtype=img.dtype, device=img.device)
                 else:
