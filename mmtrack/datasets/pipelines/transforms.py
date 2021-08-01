@@ -810,9 +810,9 @@ class SeqRandomCenterCropPad(RandomCenterCropPad):
     def _train_aug(self, results):
         """Random crop and around padding the original image.
         Args:
-            results (dict): Image infomations in the augment pipeline.
+            results (List[dict]): Image infomations in the augment pipeline.
         Returns:
-            results (dict): The updated dict.
+            results (List[dict]): The updated dict.
         """
         imgs, all_bboxes = [], []
         for result in results:
@@ -831,21 +831,21 @@ class SeqRandomCenterCropPad(RandomCenterCropPad):
                 center_x = random.randint(low=w_border, high=w - w_border)
                 center_y = random.randint(low=h_border, high=h - h_border)
                 flag = True
-                cropped_imgs, borders, pathes = [], [], []
+                cropped_imgs, borders, patches = [], [], []
                 for idx, img in enumerate(imgs):
                     bboxes = all_bboxes[idx]
                     cropped_img, border, patch = self._crop_image_and_paste(
                         img, [center_y, center_x], [new_h, new_w])
                     cropped_imgs.append(cropped_img)
                     borders.append(border)
-                    pathes.append(pathes)
+                    patches.append(patch)
                     mask = self._filter_boxes(patch, bboxes)
                     # if image do not have valid bbox, any crop patch is valid.
                     if not mask.any() and len(bboxes) > 0:
                         flag = False
                         cropped_imgs.clear()
                         borders.clear()
-                        pathes.clear()
+                        patches.clear()
                         break
                 if not flag:
                     continue
@@ -855,14 +855,14 @@ class SeqRandomCenterCropPad(RandomCenterCropPad):
                     result['img_shape'] = cropped_imgs[idx].shape
                     result['pad_shape'] = cropped_imgs[idx].shape
 
-                    x0, y0, x1, y1 = patch
+                    x0, y0, x1, y1 = patches[idx]
 
                     left_w, top_h = center_x - x0, center_y - y0
                     cropped_center_x, cropped_center_y = new_w // 2, new_h // 2
 
                     # crop bboxes accordingly and clip to the image boundary
                     for key in result.get('bbox_fields', []):
-                        mask = self._filter_boxes(patch, result[key])
+                        mask = self._filter_boxes(patches[idx], result[key])
                         bboxes = result[key][mask]
                         bboxes[:, 0:4:2] += cropped_center_x - left_w - x0
                         bboxes[:, 1:4:2] += cropped_center_y - top_h - y0
@@ -898,24 +898,4 @@ class SeqRandomCenterCropPad(RandomCenterCropPad):
             outs.append(super()._test_aug(result))
         return outs
 
-    def __call__(self, results):
-        img = results[0]['img']
-        assert img.dtype == np.float32, (
-            'RandomCenterCropPad needs the input image of dtype np.float32,'
-            ' please set "to_float32=True" in "LoadImageFromFile" pipeline')
-        h, w, c = img.shape
-        assert c == len(self.mean)
-        if self.test_mode:
-            return self._test_aug(results)
-        else:
-            return self._train_aug(results)
 
-    def __repr__(self):
-        repr_str = self.__class__.__name__
-        repr_str += f'ratios={self.ratios}, '
-        repr_str += f'border={self.border}, '
-        repr_str += f'mean={self.input_mean}, '
-        repr_str += f'std={self.input_std}, '
-        repr_str += f'to_rgb={self.to_rgb}, '
-        repr_str += f'bbox_clip_border={self.bbox_clip_border})'
-        return repr_str
