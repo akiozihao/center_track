@@ -72,7 +72,7 @@ class CTTracker(BaseTracker):
 
     @property
     def pre_bboxes(self):
-        bboxes = [track['bboxes'][-1] for id, track in self.tracks.items()]
+        bboxes = [track['bboxes'][-1]  for id, track in self.tracks.items()]
         if len(bboxes) == 0:
             return None
         return torch.cat(bboxes, 0)
