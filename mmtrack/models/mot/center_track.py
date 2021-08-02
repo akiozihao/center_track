@@ -62,15 +62,14 @@ class CenterTrack(BaseMultiObjectTracker):
         Returns:
             dict[str : list(ndarray)]: The tracking results.
         """
-        if not self.training:
-            self.detector.bbox_head.fp_disturb = .0
-            self.detector.bbox_head.lost_disturb = .0
-            self.detector.bbox_head.hm_disturb = .0
+        self.pre_thresh = 0.5
 
         frame_id = img_metas[0]['frame_id']
 
         self.ref_hm = None
         self.ref_bboxes = self.tracker.pre_bboxes
+        if self.ref_bboxes is not None:
+            self.ref_bboxes = self.ref_bboxes[self.ref_bboxes[:, -1] > self.pre_thresh]
         if frame_id == 0:
             self.tracker.reset()
             self.ref_img = img.clone()
