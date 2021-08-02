@@ -12,7 +12,7 @@ class CenterTrack(BaseMultiObjectTracker):
                  detector=None,
                  tracker=None,
                  pretrains=None,
-                 new_thresh=0.5,
+                 pre_thresh=0.5,
                  use_pre_hm=False
                  ):
         super(CenterTrack, self).__init__()
@@ -24,7 +24,7 @@ class CenterTrack(BaseMultiObjectTracker):
 
         self.init_weights(pretrains)
         # self.init_module('detector', pretrain.get('detector', False))  # todo
-        self.new_thresh = new_thresh
+        self.pre_thresh = pre_thresh
         self.use_pre_hm = use_pre_hm
 
     def init_weights(self, pretrain):
@@ -62,10 +62,7 @@ class CenterTrack(BaseMultiObjectTracker):
         Returns:
             dict[str : list(ndarray)]: The tracking results.
         """
-        self.pre_thresh = 0.5
-
         frame_id = img_metas[0]['frame_id']
-
         self.ref_hm = None
         self.ref_bboxes = self.tracker.pre_bboxes
         if self.ref_bboxes is not None:
