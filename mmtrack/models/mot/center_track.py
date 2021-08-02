@@ -64,8 +64,6 @@ class CenterTrack(BaseMultiObjectTracker):
         """
         self.pre_thresh = 0.5
         frame_id = img_metas[0]['frame_id']
-        if frame_id == 0:
-            self.tracker.reset()
         self.ref_hm = None
         self.ref_bboxes = self.tracker.pre_bboxes
         if self.ref_bboxes is not None:
