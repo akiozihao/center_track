@@ -13,7 +13,7 @@ class CenterTrack(BaseMultiObjectTracker):
                  tracker=None,
                  pretrains=None,
                  pre_thresh=0.5,
-                 use_pre_hm=False
+                 use_pre_hm=True,
                  ):
         super(CenterTrack, self).__init__()
         if detector is not None:
