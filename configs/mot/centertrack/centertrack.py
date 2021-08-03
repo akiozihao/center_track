@@ -4,7 +4,7 @@ _base_ = [
 # dataset settings
 dataset_type = 'MOTChallengeDataset'
 img_norm_cfg = dict(
-    mean=[104.01362,114.034225,119.916595], std=[73.60277,69.89082,70.91508], to_rgb=False)
+    mean=[104.01362, 114.034225, 119.916595], std=[73.60277, 69.89082, 70.91508], to_rgb=False)
 train_pipeline = [
     dict(type='LoadMultiImagesFromFile', to_float32=True),
     dict(type='SeqLoadAnnotations', with_bbox=True, with_track=True),
@@ -23,7 +23,8 @@ train_pipeline = [
         type='SeqResize',
         img_scale=(544, 960),
         share_params=True,
-        keep_ratio=True),
+        keep_ratio=True,
+        bbox_clip_border=False),
     dict(type='SeqRandomFlip', share_params=True, flip_ratio=0.5),
     dict(type='SeqNormalize', **img_norm_cfg),
     dict(type='SeqPad', size_divisor=32),
@@ -40,8 +41,8 @@ test_pipeline = [
     dict(type='LoadImageFromFile', to_float32=True),
     dict(
         type='MultiScaleFlipAug',
-        # img_scale=[(544, 960)],
-        scale_factor=1.0,
+        img_scale=[(544, 960)],
+        # scale_factor=1.0,
         flip=False,
         transforms=[
             dict(
@@ -56,7 +57,7 @@ test_pipeline = [
                 # test_pad_add_pix=1,
                 test_pad_mode=['size_divisor', 32],
                 bbox_clip_border=False),
-            dict(type='Resize', keep_ratio=True),
+            dict(type='Resize', keep_ratio=True, bbox_clip_border=False),
             dict(type='RandomFlip'),
             dict(type='Normalize', **img_norm_cfg),
             dict(type='Pad', size_divisor=32),
@@ -72,8 +73,8 @@ test_pipeline = [
 data_root = '../data/MOT17/'
 # data_root = '/home/akio/data/MOT/MOT17-mini/'
 data = dict(
-    samples_per_gpu=2,
-    workers_per_gpu=2,
+    samples_per_gpu=4,
+    workers_per_gpu=1,
     train=dict(
         _delete_=True,
         type='RepeatDataset',
@@ -85,7 +86,7 @@ data = dict(
             img_prefix=data_root + 'train',
             ref_img_sampler=dict(
                 num_ref_imgs=1,
-                frame_range=3,
+                frame_range=2,
                 filter_key_img=True,
                 method='uniform'),
             pipeline=train_pipeline)),
@@ -133,24 +134,27 @@ model = dict(
 )
 
 # optimizer
-optimizer = dict(type='SGD', lr=0.0025, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(_delete_=True, type='Adam', lr=1.25e-4)
 # optimizer_config = dict(grad_clip=None)
-optimizer_config = dict(
-    _delete_=True, grad_clip=dict(max_norm=35, norm_type=2))
+# optimizer_config = dict(
+#     _delete_=True, grad_clip=dict(max_norm=35, norm_type=2))
 
 lr_config = dict(
     policy='step',
-    warmup='linear',
-    warmup_iters=1000,
-    warmup_ratio=1.0 / 1000,
-    step=[18, 24])  # the real step is [18*5, 24*5]
+    # warmup='linear',
+    # warmup_iters=1000,
+    # warmup_ratio=1.0 / 1000,
+    step=[60])  # the real step is [18*5, 24*5]
 
 # runner = dict(type='EpochBasedRunner', max_epochs=28)  # the real epoch is 28*5=140
 
 # runtime settings
-total_epochs = 28
+total_epochs = 70
 evaluation = dict(metric=['bbox', 'track'], interval=1)
 search_metrics = ['MOTA', 'IDF1', 'FN', 'FP', 'IDs', 'MT', 'ML']
 
 # For distributed training
 find_unused_parameters = True
+
+# checkpoint
+checkpoint_config = dict(_delete_=True, interval=10)
