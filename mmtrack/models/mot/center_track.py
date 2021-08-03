@@ -75,7 +75,7 @@ class CenterTrack(BaseMultiObjectTracker):
                 self.ref_hm = torch.zeros((n, 1, h, w), dtype=img.dtype, device=img.device)
         else:
             if self.use_pre_hm:
-                if self.ref_bboxes.shape[0] == 0:
+                if self.ref_bboxes is None or self.ref_bboxes.shape[0] == 0:
                     n, c, h, w = img.shape
                     self.ref_hm = torch.zeros((n, 1, h, w), dtype=img.dtype, device=img.device)
                 else:
