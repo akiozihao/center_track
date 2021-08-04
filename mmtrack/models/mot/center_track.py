@@ -13,7 +13,7 @@ class CenterTrack(BaseMultiObjectTracker):
                  tracker=None,
                  pretrains=None,
                  pre_thresh=0.5,
-                 use_pre_hm=True,
+                 use_pre_hm=False,
                  ):
         super(CenterTrack, self).__init__()
         if detector is not None:
@@ -64,9 +64,9 @@ class CenterTrack(BaseMultiObjectTracker):
         """
         frame_id = img_metas[0]['frame_id']
         self.ref_hm = None
-        self.ref_bboxes = self.tracker.pre_bboxes
-        if self.ref_bboxes is not None:
-            self.ref_bboxes = self.ref_bboxes[self.ref_bboxes[:, -1] > self.pre_thresh]
+        self.pre_bboxes_input = self.tracker.bboxes_input
+        if self.pre_bboxes_input is not None:
+            self.pre_bboxes_input = self.pre_bboxes_input[self.pre_bboxes_input[:, -1] > self.pre_thresh]
         if frame_id == 0:
             self.tracker.reset()
             self.ref_img = img.clone()
@@ -75,11 +75,11 @@ class CenterTrack(BaseMultiObjectTracker):
                 self.ref_hm = torch.zeros((n, 1, h, w), dtype=img.dtype, device=img.device)
         else:
             if self.use_pre_hm:
-                if self.ref_bboxes is None or self.ref_bboxes.shape[0] == 0:
+                if self.pre_bboxes_input is None or self.pre_bboxes_input.shape[0] == 0:
                     n, c, h, w = img.shape
                     self.ref_hm = torch.zeros((n, 1, h, w), dtype=img.dtype, device=img.device)
                 else:
-                    self.ref_hm = self.detector._build_test_hm(self.ref_img, self.ref_bboxes)
+                    self.ref_hm = self.detector._build_test_hm(self.ref_img, self.pre_bboxes_input)
 
         # todo check this
         batch_input_shape = tuple(img[0].size()[-2:])
@@ -93,14 +93,16 @@ class CenterTrack(BaseMultiObjectTracker):
         # TODO: support batch inference
         det_bboxes = result_list[0][0]
         det_labels = result_list[0][1]
-        gt_bboxes_with_motion = result_list[0][2]
+        det_bboxes_with_motion = result_list[0][2]
+        det_bboxes_input = result_list[0][3]
         num_classes = self.detector.bbox_head.num_classes
         self.ref_img = img
         bboxes, labels, ids = self.tracker.track(
             img=img,
             img_metas=img_metas,
+            bboxes_input=det_bboxes_input,
             bboxes=det_bboxes,
-            bboxes_with_motion=gt_bboxes_with_motion,
+            bboxes_with_motion=det_bboxes_with_motion,
             labels=det_labels,
             frame_id=frame_id,
             rescale=rescale,
