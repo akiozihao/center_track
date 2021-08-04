@@ -1,9 +1,8 @@
 import numpy as np
+import torch
 
 from mmtrack.models import TRACKERS
-
 from .base_tracker import BaseTracker
-import torch
 
 
 @TRACKERS.register_module()
@@ -11,13 +10,14 @@ class CTTracker(BaseTracker):
     def __init__(self,
                  obj_score_thr=0.4,
                  momentums=None,
-                 num_frames_retain=2):
+                 num_frames_retain=1):
         super(CTTracker, self).__init__(momentums, num_frames_retain)
         self.obj_score_thr = obj_score_thr
 
     def track(self,
               img,
               img_metas,
+              bboxes_input,
               bboxes,
               bboxes_with_motion,
               labels,
@@ -25,6 +25,7 @@ class CTTracker(BaseTracker):
               rescale,
               **kwargs):
         valid_inds = bboxes[:, -1] > self.obj_score_thr
+        bboxes_input = bboxes_input[valid_inds]
         bboxes = bboxes[valid_inds]
         bboxes_with_motion = bboxes_with_motion[valid_inds]
         labels = labels[valid_inds]
@@ -64,6 +65,7 @@ class CTTracker(BaseTracker):
             self.num_tracks += new_track_inds.sum()
         self.update(
             ids=ids,
+            bboxes_input=bboxes_input,
             bboxes=bboxes,
             cts=self._xyxy2center(bboxes),
             labels=labels,
@@ -71,8 +73,15 @@ class CTTracker(BaseTracker):
         return bboxes, labels, ids
 
     @property
+    def bboxes_input(self):
+        bboxes = [track['bboxes_input'][-1] for id, track in self.tracks.items()]
+        if len(bboxes) == 0:
+            return None
+        return torch.cat(bboxes, 0)
+
+    @property
     def pre_bboxes(self):
-        bboxes = [track['bboxes'][-1]  for id, track in self.tracks.items()]
+        bboxes = [track['bboxes'][-1] for id, track in self.tracks.items()]
         if len(bboxes) == 0:
             return None
         return torch.cat(bboxes, 0)
