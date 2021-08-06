@@ -9,7 +9,7 @@ import torch
 from mmcv import Config, DictAction
 from mmcv.runner import init_dist
 from mmdet.apis import set_random_seed
-from mmdet.datasets import build_dataset
+from mmtrack.datasets import build_dataset
 
 from mmtrack import __version__
 from mmtrack.utils import collect_env, get_root_logger
@@ -146,8 +146,8 @@ def main():
             cfg.model, train_cfg=cfg.train_cfg, test_cfg=cfg.test_cfg)
     else:
         model = build_model(cfg.model)
-    if 'detector' in cfg.model:
-        model.detector.init_weights()
+    # if 'detector' in cfg.model:
+    #     model.detector.init_weights()
     # if True, the model denotes a detector based on Line #75. Therefore, we
     # need model.init_weights() rather than model.detector.init_weights()
     if need_init_detector:
