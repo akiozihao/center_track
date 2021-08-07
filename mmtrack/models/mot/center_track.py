@@ -14,7 +14,7 @@ class CenterTrack(BaseMultiObjectTracker):
                  tracker=None,
                  pretrains=None,
                  pre_thresh=0.5,
-                 use_pre_hm=False,
+                 use_pre_hm=True,
                  ):
         super(CenterTrack, self).__init__()
         if detector is not None:
@@ -27,6 +27,10 @@ class CenterTrack(BaseMultiObjectTracker):
         # self.init_module('detector', pretrain.get('detector', False))  # todo
         self.pre_thresh = pre_thresh
         self.use_pre_hm = use_pre_hm
+
+        self.pre_img = None
+        self.pre_hm = None
+        self.pre_bboxes = None
 
     def init_weights(self, pretrain):
         """Initialize the weights of the modules.
@@ -64,7 +68,6 @@ class CenterTrack(BaseMultiObjectTracker):
             dict[str : list(ndarray)]: The tracking results.
         """
         frame_id = img_metas[0]['frame_id']
-        self.ref_hm = None
         self.pre_bboxes_input = self.tracker.bboxes_input
         if self.pre_bboxes_input is not None:
             self.pre_bboxes_input = self.pre_bboxes_input[self.pre_bboxes_input[:, -1] > self.pre_thresh]
@@ -74,6 +77,9 @@ class CenterTrack(BaseMultiObjectTracker):
             if self.use_pre_hm:
                 n, c, h, w = img.shape
                 self.ref_hm = torch.zeros((n, 1, h, w), dtype=img.dtype, device=img.device)
+            else:
+                self.ref_hm = None
+                self.ref_img = None
         else:
             if self.use_pre_hm:
                 if self.pre_bboxes_input is None or self.pre_bboxes_input.shape[0] == 0:
@@ -81,6 +87,10 @@ class CenterTrack(BaseMultiObjectTracker):
                     self.ref_hm = torch.zeros((n, 1, h, w), dtype=img.dtype, device=img.device)
                 else:
                     self.ref_hm = self.detector._build_test_hm(self.ref_img, self.pre_bboxes_input)
+                    self.ref_img = None
+            else:
+                self.ref_hm = None
+                self.ref_img = None
 
         # todo check this
         batch_input_shape = tuple(img[0].size()[-2:])
