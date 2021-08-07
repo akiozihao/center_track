@@ -823,7 +823,7 @@ class SeqRandomCenterCropPad(RandomCenterCropPad):
         while True:
             scale = random.choice(self.ratios)
             # To align with original CenterTrack
-            scale = 1 / scale
+            # scale = 1 / scale
             new_h = int(self.crop_size[0] * scale)
             new_w = int(self.crop_size[1] * scale)
             h_border = self._get_border(self.border, h)

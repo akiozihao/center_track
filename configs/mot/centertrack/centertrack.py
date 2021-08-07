@@ -13,6 +13,7 @@ train_pipeline = [
         type='SeqRandomCenterCropPad',
         share_params=True,
         crop_size=(1080, 1920),
+        ratios=(0.6, 0.7, 0.8, 0.9),
         mean=[0, 0, 0],
         std=[1, 1, 1],
         to_rgb=True,
@@ -68,20 +69,20 @@ test_pipeline = [
                 keys=['img'])
         ])
 ]
-data_root = '../data/MOT17-FRCNN/'
+data_root = '../data/mot17-frcnn/'
 # data_root = '/home/akio/data/MOT/MOT17-mini/'
 data = dict(
     samples_per_gpu=4,
-    workers_per_gpu=1,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
-        visibility_thr=0.25,
+        visibility_thr=-1,
         ann_file=data_root + 'annotations/half-train_cocoformat.json',
         img_prefix=data_root + 'train',
         ref_img_sampler=dict(
             num_ref_imgs=1,
             frame_range=2,
-            filter_key_img=True,
+            filter_key_img=False,
             method='uniform'),
         pipeline=train_pipeline),
     val=dict(
@@ -102,7 +103,7 @@ model = dict(
     pretrains=dict(
         # detector='/home/akio/dev/mmtracking/new_model.pth'
         # detector='../new_model.pth'
-        detector='/home/akio/Downloads/new_crowdhuman.pth'
+        # detector='/home/akio/Downloads/new_crowdhuman.pth'
     ),
     detector=dict(
         type='CTDetector',
@@ -143,7 +144,7 @@ lr_config = dict(
 
 # runtime settings
 total_epochs = 70
-evaluation = dict(metric=['bbox', 'track'], interval=1)
+evaluation = dict(metric=['bbox', 'track'], interval=5)
 search_metrics = ['MOTA', 'IDF1', 'FN', 'FP', 'IDs', 'MT', 'ML']
 
 # For distributed training
