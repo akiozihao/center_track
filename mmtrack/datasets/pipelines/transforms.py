@@ -7,6 +7,7 @@ from mmdet.datasets.pipelines import Normalize, Pad, RandomFlip, Resize, RandomC
 from mmtrack.core import crop_image
 from numpy import random
 
+
 @PIPELINES.register_module()
 class SeqCropLikeSiamFC(object):
     """Crop images as SiamFC did.
@@ -863,25 +864,26 @@ class SeqRandomCenterCropPad(RandomCenterCropPad):
 
                     # crop bboxes accordingly and clip to the image boundary
                     for key in result.get('bbox_fields', []):
-                        mask = self._filter_boxes(patches[idx], result[key])
-                        bboxes = result[key][mask]
+                        # mask = self._filter_boxes(patches[idx], result[key])
+
+                        bboxes = result[key]
                         bboxes[:, 0:4:2] += cropped_center_x - left_w - x0
                         bboxes[:, 1:4:2] += cropped_center_y - top_h - y0
                         if self.bbox_clip_border:
                             bboxes[:, 0:4:2] = np.clip(bboxes[:, 0:4:2], 0, new_w)
                             bboxes[:, 1:4:2] = np.clip(bboxes[:, 1:4:2], 0, new_h)
-                        keep = (bboxes[:, 2] > bboxes[:, 0]) & (
-                                bboxes[:, 3] > bboxes[:, 1])
-                        bboxes = bboxes[keep]
+                        # keep = (bboxes[:, 2] > bboxes[:, 0]) & (
+                        #         bboxes[:, 3] > bboxes[:, 1])
+                        # bboxes = bboxes[keep]
                         result[key] = bboxes
                         if key in ['gt_bboxes']:
                             if 'gt_labels' in result:
-                                labels = result['gt_labels'][mask]
-                                labels = labels[keep]
+                                labels = result['gt_labels']
+                                labels = labels
                                 result['gt_labels'] = labels
                             if 'gt_instance_ids' in result:
-                                instace_ids = result['gt_instance_ids'][mask]
-                                instace_ids = instace_ids[keep]
+                                instace_ids = result['gt_instance_ids']
+                                instace_ids = instace_ids
                                 result['gt_instance_ids'] = instace_ids
                             if 'gt_masks' in result:
                                 raise NotImplementedError(

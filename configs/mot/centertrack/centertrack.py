@@ -12,8 +12,7 @@ train_pipeline = [
     dict(
         type='SeqRandomCenterCropPad',
         share_params=True,
-        crop_size=(544, 960),
-        ratios=(0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3),
+        crop_size=(1080, 1920),
         mean=[0, 0, 0],
         std=[1, 1, 1],
         to_rgb=True,
@@ -41,8 +40,7 @@ test_pipeline = [
     dict(type='LoadImageFromFile', to_float32=True),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=[(544, 960)],
-        # scale_factor=1.0,
+        img_scale=(544, 960),
         flip=False,
         transforms=[
             dict(
@@ -76,20 +74,16 @@ data = dict(
     samples_per_gpu=4,
     workers_per_gpu=1,
     train=dict(
-        _delete_=True,
-        type='RepeatDataset',
-        times=1,
-        dataset=dict(
-            type=dataset_type,
-            visibility_thr=0.25,
-            ann_file=data_root + 'annotations/half-train_cocoformat.json',
-            img_prefix=data_root + 'train',
-            ref_img_sampler=dict(
-                num_ref_imgs=1,
-                frame_range=2,
-                filter_key_img=True,
-                method='uniform'),
-            pipeline=train_pipeline)),
+        type=dataset_type,
+        visibility_thr=0.25,
+        ann_file=data_root + 'annotations/half-train_cocoformat.json',
+        img_prefix=data_root + 'train',
+        ref_img_sampler=dict(
+            num_ref_imgs=1,
+            frame_range=2,
+            filter_key_img=True,
+            method='uniform'),
+        pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/half-val_cocoformat.json',
@@ -106,8 +100,9 @@ data = dict(
 model = dict(
     type='CenterTrack',
     pretrains=dict(
-        detector='/home/akio/dev/mmtracking/new_model.pth'
+        # detector='/home/akio/dev/mmtracking/new_model.pth'
         # detector='../new_model.pth'
+        detector='/home/akio/Downloads/new_crowdhuman.pth'
     ),
     detector=dict(
         type='CTDetector',
@@ -144,9 +139,7 @@ lr_config = dict(
     # warmup='linear',
     # warmup_iters=1000,
     # warmup_ratio=1.0 / 1000,
-    step=[60])  # the real step is [18*5, 24*5]
-
-# runner = dict(type='EpochBasedRunner', max_epochs=28)  # the real epoch is 28*5=140
+    step=[60])
 
 # runtime settings
 total_epochs = 70
