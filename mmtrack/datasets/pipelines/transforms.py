@@ -1039,7 +1039,10 @@ class SeqRandomCenterCropPad(object):
         return border // i
 
     def __call__(self, results):
-        img = results[0]['img']
+        if self.test_mode:
+            img = results['img']
+        else:
+            img = results[0]['img']
         assert img.dtype == np.float32, (
             'RandomCenterCropPad needs the input image of dtype np.float32,'
             ' please set "to_float32=True" in "LoadImageFromFile" pipeline')
