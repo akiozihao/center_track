@@ -801,11 +801,20 @@ class SeqPhotoMetricDistortion(object):
 
 
 @PIPELINES.register_module()
-class SeqRandomCenterCropPad(RandomCenterCropPad):
+class SeqRandomCenterCropPad(object):
 
-    def __init__(self, share_params=True, random=True, fix=None, **args):
-        super(SeqRandomCenterCropPad, self).__init__(**args)
-        self.share_params = share_params
+    def __init__(self,
+                 crop_size=(544, 960),
+                 ratios=None,
+                 border=128,
+                 test_mode=False,
+                 random=True,
+                 fix=None,
+                 **args):
+        self.crop_size = crop_size
+        self.ratios = ratios
+        self.border = border
+        self.test_mode = test_mode
         self.random = random
         if fix is not None:
             self.random = False
@@ -828,7 +837,6 @@ class SeqRandomCenterCropPad(RandomCenterCropPad):
 
         img_size = np.array([w, h], np.float32)
         ct = img_size / 2
-        ct += [55, 123]
         # if self.random:
         #     pass
         # else:
@@ -847,17 +855,18 @@ class SeqRandomCenterCropPad(RandomCenterCropPad):
             new_w = int(self.crop_size[1])
 
             for i in range(50):
-                # ct[0] = np.random.randint(low=w_border, high=w - w_border)
-                # ct[1] = np.random.randint(low=h_border, high=h - h_border)
-                aug_scale = 1.3
+                ct[0] = np.random.randint(low=w_border, high=w - w_border)
+                ct[1] = np.random.randint(low=h_border, high=h - h_border)
                 img_size = img_size * aug_scale
 
-                trans_input = self.get_affine_transform(
+                trans_input = self._get_affine_transform(
                     ct, img_size, [new_w, new_h])
+                trans_input_inv = self._get_affine_transform(
+                    ct, img_size, [new_w, new_h], inv=1)
 
                 has_bbox = True
                 cropped_imgs = []
-                masks = []
+                # masks = []
                 for idx, img in enumerate(imgs):
                     bboxes = all_bboxes[idx]
                     mask = np.zeros(len(bboxes), dtype=bool)
@@ -873,8 +882,8 @@ class SeqRandomCenterCropPad(RandomCenterCropPad):
                         # bbox[:2] = rect[:, 0].min(), rect[:, 1].min()
                         # bbox[2:] = rect[:, 0].max(), rect[:, 1].max()
 
-                        bbox[:2] = self.affine_transform(bbox[:2], trans_input)
-                        bbox[2:] = self.affine_transform(bbox[2:], trans_input)
+                        bbox[:2] = self._affine_transform(bbox[:2], trans_input)
+                        bbox[2:] = self._affine_transform(bbox[2:], trans_input)
 
                         # don't need
                         # bbox_amodal = copy.deepcopy(bbox)
@@ -886,12 +895,12 @@ class SeqRandomCenterCropPad(RandomCenterCropPad):
                         if bbox_h <= 0 or bbox_w <= 0:
                             continue
                         mask[i] = True
-                    masks.append(mask)
+                    # masks.append(mask)
                     # if image do not have valid bbox, any crop patch is valid.
                     if not mask.any() and len(bboxes) > 0:
                         has_bbox = False
                         cropped_imgs.clear()
-                        masks.clear()
+                        # masks.clear()
                         break
                 # if no valid bbox, try another center
                 if not has_bbox:
@@ -901,8 +910,18 @@ class SeqRandomCenterCropPad(RandomCenterCropPad):
                     result['img'] = cropped_imgs[idx]
                     result['img_shape'] = cropped_imgs[idx].shape
                     result['pad_shape'] = cropped_imgs[idx].shape
-                    result['gt_bboxes'] = all_bboxes[idx][masks[idx]]
-                    result['input_transform'] = trans_input
+                    result['gt_bboxes'] = all_bboxes[idx]
+                    #             labels = result['gt_labels']
+                    #             labels = labels
+                    #             result['gt_labels'] = labels
+                    #         if 'gt_instance_ids' in result:
+                    #             instace_ids = result['gt_instance_ids']
+                    #             instace_ids = instace_ids
+                    #             result['gt_instance_ids'] = instace_ids
+                    #         if 'gt_masks' in result:
+                    #             raise NotImplementedError(
+                    #                 'RandomCenterCropPad only supports bbox.')
+                    result['invert_transform'] = trans_input_inv
 
                     # crop bboxes accordingly and clip to the image boundary
                     # for key in result.get('bbox_fields', []):
@@ -940,16 +959,33 @@ class SeqRandomCenterCropPad(RandomCenterCropPad):
                             'RandomCenterCropPad only supports bbox.')
                 return results
 
-    def affine_transform(self, pt, t):
+    def _test_aug(self, results):
+        img = results['img']
+        h, w, c = img.shape
+        img_size = np.array([w, h], np.float32)
+        ct = img_size / 2
+        new_h = int(self.crop_size[0])
+        new_w = int(self.crop_size[1])
+
+        trans_input = self._get_affine_transform(
+            ct, img_size, [new_w, new_h])
+        cropped_img = cv2.warpAffine(img, trans_input, (new_w, new_h), flags=cv2.INTER_LINEAR)
+
+        results['img'] = cropped_img
+        results['invert_transform'] = self._get_affine_transform(
+            ct, img_size, [new_w, new_h], inv=1)
+        return results
+
+    def _affine_transform(self, pt, t):
         new_pt = np.array([pt[0], pt[1], 1.], dtype=np.float32).T
         new_pt = np.dot(t, new_pt)
         return new_pt[:2]
 
-    def get_affine_transform(self,
-                             center,
-                             scale,  # todo change to width
-                             output_size,
-                             inv=0):
+    def _get_affine_transform(self,
+                              center,
+                              scale,  # todo change to width
+                              output_size,
+                              inv=0):
         # if not isinstance(scale, np.ndarray) and not isinstance(scale, list):
         #     scale = np.array([scale, scale], dtype=np.float32)
         if not isinstance(output_size, np.ndarray):
@@ -983,19 +1019,30 @@ class SeqRandomCenterCropPad(RandomCenterCropPad):
 
         return trans
 
-    def _test_aug(self, results):
-        outs = []
-        for result in results:
-            outs.append(super()._test_aug(result))
-        return outs
+    def _get_border(self, border, size):
+        """Get final border for the target size.
+
+        This function generates a ``final_border`` according to image's shape.
+        The area between ``final_border`` and ``size - final_border`` is the
+        ``center range``. We randomly choose center from the ``center range``
+        to avoid our random center is too close to original image's border.
+        Also ``center range`` should be larger than 0.
+
+        Args:
+            border (int): The initial border, default is 128.
+            size (int): The width or height of original image.
+        Returns:
+            int: The final border.
+        """
+        k = 2 * border / size
+        i = pow(2, np.ceil(np.log2(np.ceil(k))) + (k == int(k)))
+        return border // i
 
     def __call__(self, results):
         img = results[0]['img']
         assert img.dtype == np.float32, (
             'RandomCenterCropPad needs the input image of dtype np.float32,'
             ' please set "to_float32=True" in "LoadImageFromFile" pipeline')
-        h, w, c = img.shape
-        assert c == len(self.mean)
         if self.test_mode:
             return self._test_aug(results)
         else:
