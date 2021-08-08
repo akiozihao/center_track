@@ -31,6 +31,7 @@ train_pipeline = [
     dict(type='MatchInstances', skip_nomatch=True),
     dict(
         type='VideoCollect',
+        meta_keys=('input_transform'),
         keys=[
             'img', 'gt_bboxes', 'gt_labels', 'gt_match_indices',
             'gt_instance_ids'
@@ -65,7 +66,7 @@ test_pipeline = [
                 type='VideoCollect',
                 meta_keys=('filename', 'ori_shape', 'img_shape', 'pad_shape',
                            'scale_factor', 'flip', 'flip_direction',
-                           'img_norm_cfg', 'border'),
+                           'img_norm_cfg', 'input_transform'),
                 keys=['img'])
         ])
 ]
@@ -76,7 +77,7 @@ data = dict(
     workers_per_gpu=2,
     train=dict(
         type=dataset_type,
-        visibility_thr=-1,
+        visibility_thr=0.25,
         ann_file=data_root + 'annotations/half-train_cocoformat.json',
         img_prefix=data_root + 'train',
         ref_img_sampler=dict(

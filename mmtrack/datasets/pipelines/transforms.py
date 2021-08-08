@@ -803,9 +803,14 @@ class SeqPhotoMetricDistortion(object):
 @PIPELINES.register_module()
 class SeqRandomCenterCropPad(RandomCenterCropPad):
 
-    def __init__(self, share_params=True, **args):
+    def __init__(self, share_params=True, random=True, fix=None, **args):
         super(SeqRandomCenterCropPad, self).__init__(**args)
         self.share_params = share_params
+        self.random = random
+        if fix is not None:
+            self.random = False
+            assert fix is tuple and len(fix) == 2, 'fix must be a tuple of (scale, shift)'
+            self.fix = fix
 
     def _train_aug(self, results):
         """Random crop and around padding the original image.
@@ -820,80 +825,163 @@ class SeqRandomCenterCropPad(RandomCenterCropPad):
             all_bboxes.append(result['gt_bboxes'])
 
         h, w, c = imgs[0].shape
+
+        img_size = np.array([w, h], np.float32)
+        ct = img_size / 2
+        ct += [55, 123]
+        # if self.random:
+        #     pass
+        # else:
+        #     sf = self.fix[0]  # fixed scale
+        #     cf = self.fix[1]  # fixed shift
+        #     ct[0] += img_size * np.clip(np.random.randn() * cf, -2 * cf, 2 * cf)
+        #     ct[1] += img_size * np.clip(np.random.randn() * cf, -2 * cf, 2 * cf)
+        #     aug_s = np.clip(np.random.randn() * sf + 1, 1 - sf, 1 + sf)
+
         while True:
-            scale = random.choice(self.ratios)
-            # To align with original CenterTrack
-            # scale = 1 / scale
-            new_h = int(self.crop_size[0] * scale)
-            new_w = int(self.crop_size[1] * scale)
+            aug_scale = np.random.choice(self.ratios)
             h_border = self._get_border(self.border, h)
             w_border = self._get_border(self.border, w)
 
+            new_h = int(self.crop_size[0])
+            new_w = int(self.crop_size[1])
+
             for i in range(50):
-                center_x = random.randint(low=w_border, high=w - w_border)
-                center_y = random.randint(low=h_border, high=h - h_border)
-                flag = True
-                cropped_imgs, borders, patches = [], [], []
+                # ct[0] = np.random.randint(low=w_border, high=w - w_border)
+                # ct[1] = np.random.randint(low=h_border, high=h - h_border)
+                aug_scale = 1.3
+                img_size = img_size * aug_scale
+
+                trans_input = self.get_affine_transform(
+                    ct, img_size, [new_w, new_h])
+
+                has_bbox = True
+                cropped_imgs = []
+                masks = []
                 for idx, img in enumerate(imgs):
                     bboxes = all_bboxes[idx]
-                    cropped_img, border, patch = self._crop_image_and_paste(
-                        img, [center_y, center_x], [new_h, new_w])
+                    mask = np.zeros(len(bboxes), dtype=bool)
+                    cropped_img = cv2.warpAffine(img, trans_input, (new_w, new_h), flags=cv2.INTER_LINEAR)
                     cropped_imgs.append(cropped_img)
-                    borders.append(border)
-                    patches.append(patch)
-                    mask = self._filter_boxes(patch, bboxes)
+
+                    for i, bbox in enumerate(bboxes):
+
+                        # rect = np.array([[bbox[0], bbox[1]], [bbox[0], bbox[3]],
+                        #                  [bbox[2], bbox[3]], [bbox[2], bbox[1]]], dtype=np.float32)
+                        # for t in range(4):
+                        #     rect[t] = affine_transform(rect[t], trans_input)
+                        # bbox[:2] = rect[:, 0].min(), rect[:, 1].min()
+                        # bbox[2:] = rect[:, 0].max(), rect[:, 1].max()
+
+                        bbox[:2] = self.affine_transform(bbox[:2], trans_input)
+                        bbox[2:] = self.affine_transform(bbox[2:], trans_input)
+
+                        # don't need
+                        # bbox_amodal = copy.deepcopy(bbox)
+                        # bbox_amodal = bbox.copy()
+                        bbox[[0, 2]] = np.clip(bbox[[0, 2]], 0, new_w - 1)
+                        bbox[[1, 3]] = np.clip(bbox[[1, 3]], 0, new_h - 1)
+
+                        bbox_h, bbox_w = bbox[3] - bbox[1], bbox[2] - bbox[0]
+                        if bbox_h <= 0 or bbox_w <= 0:
+                            continue
+                        mask[i] = True
+                    masks.append(mask)
                     # if image do not have valid bbox, any crop patch is valid.
                     if not mask.any() and len(bboxes) > 0:
-                        flag = False
+                        has_bbox = False
                         cropped_imgs.clear()
-                        borders.clear()
-                        patches.clear()
+                        masks.clear()
                         break
-                if not flag:
+                # if no valid bbox, try another center
+                if not has_bbox:
                     continue
 
                 for idx, result in enumerate(results):
                     result['img'] = cropped_imgs[idx]
                     result['img_shape'] = cropped_imgs[idx].shape
                     result['pad_shape'] = cropped_imgs[idx].shape
-
-                    x0, y0, x1, y1 = patches[idx]
-
-                    left_w, top_h = center_x - x0, center_y - y0
-                    cropped_center_x, cropped_center_y = new_w // 2, new_h // 2
+                    result['gt_bboxes'] = all_bboxes[idx][masks[idx]]
+                    result['input_transform'] = trans_input
 
                     # crop bboxes accordingly and clip to the image boundary
-                    for key in result.get('bbox_fields', []):
-                        # mask = self._filter_boxes(patches[idx], result[key])
-
-                        bboxes = result[key]
-                        bboxes[:, 0:4:2] += cropped_center_x - left_w - x0
-                        bboxes[:, 1:4:2] += cropped_center_y - top_h - y0
-                        if self.bbox_clip_border:
-                            bboxes[:, 0:4:2] = np.clip(bboxes[:, 0:4:2], 0, new_w)
-                            bboxes[:, 1:4:2] = np.clip(bboxes[:, 1:4:2], 0, new_h)
-                        # keep = (bboxes[:, 2] > bboxes[:, 0]) & (
-                        #         bboxes[:, 3] > bboxes[:, 1])
-                        # bboxes = bboxes[keep]
-                        result[key] = bboxes
-                        if key in ['gt_bboxes']:
-                            if 'gt_labels' in result:
-                                labels = result['gt_labels']
-                                labels = labels
-                                result['gt_labels'] = labels
-                            if 'gt_instance_ids' in result:
-                                instace_ids = result['gt_instance_ids']
-                                instace_ids = instace_ids
-                                result['gt_instance_ids'] = instace_ids
-                            if 'gt_masks' in result:
-                                raise NotImplementedError(
-                                    'RandomCenterCropPad only supports bbox.')
+                    # for key in result.get('bbox_fields', []):
+                    #     if key in ['gt_bboxes']:
+                    #         if 'gt_labels' in result:
+                    #             labels = result['gt_labels']
+                    #             labels = labels
+                    #             result['gt_labels'] = labels
+                    #         if 'gt_instance_ids' in result:
+                    #             instace_ids = result['gt_instance_ids']
+                    #             instace_ids = instace_ids
+                    #             result['gt_instance_ids'] = instace_ids
+                    #         if 'gt_masks' in result:
+                    #             raise NotImplementedError(
+                    #                 'RandomCenterCropPad only supports bbox.')
+                    #         result[key] = result[key][masks[idx]]
+                    #         continue
+                    #     # mask = self._filter_boxes(patches[idx], result[key])
+                    #
+                    #     bboxes = result[key]
+                    #     for i, bbox in enumerate(bboxes):
+                    #         bbox[:2] = self.affine_transform(bbox[:2], trans_input)
+                    #         bbox[2:] = self.affine_transform(bbox[2:], trans_input)
+                    #         if self.bbox_clip_border:
+                    #             bbox[[0, 2]] = np.clip(bbox[[0, 2]], 0, new_w - 1)
+                    #             bbox[[1, 3]] = np.clip(bbox[[1, 3]], 0, new_h - 1)
+                    #     # keep = (bboxes[:, 2] > bboxes[:, 0]) & (
+                    #     #         bboxes[:, 3] > bboxes[:, 1])
+                    #     # bboxes = bboxes[keep]
+                    #     result[key] = bboxes
 
                     # crop semantic seg
                     for key in result.get('seg_fields', []):
                         raise NotImplementedError(
                             'RandomCenterCropPad only supports bbox.')
                 return results
+
+    def affine_transform(self, pt, t):
+        new_pt = np.array([pt[0], pt[1], 1.], dtype=np.float32).T
+        new_pt = np.dot(t, new_pt)
+        return new_pt[:2]
+
+    def get_affine_transform(self,
+                             center,
+                             scale,  # todo change to width
+                             output_size,
+                             inv=0):
+        # if not isinstance(scale, np.ndarray) and not isinstance(scale, list):
+        #     scale = np.array([scale, scale], dtype=np.float32)
+        if not isinstance(output_size, np.ndarray):
+            output_size = np.array(output_size)
+
+        src_w = scale[0]
+        dst_w = output_size[0]
+        dst_h = output_size[1]
+        dst_center = output_size * 0.5
+
+        src_dir = np.array([0, src_w * -0.5], np.float32)
+        dst_dir = np.array([0, dst_w * -0.5], np.float32)
+
+        src = np.zeros((3, 2), dtype=np.float32)
+        dst = np.zeros((3, 2), dtype=np.float32)
+        src[0, :] = center
+        src[1, :] = center + src_dir
+        dst[0, :] = dst_center
+        dst[1, :] = dst_center + dst_dir
+
+        def get_3rd_point(a, b):
+            direct = a - b
+            return b + np.array([-direct[1], direct[0]], dtype=np.float32)
+        src[2:, :] = get_3rd_point(src[0, :], src[1, :])
+        dst[2:, :] = get_3rd_point(dst[0, :], dst[1, :])
+
+        if inv:
+            trans = cv2.getAffineTransform(dst, src)
+        else:
+            trans = cv2.getAffineTransform(src, dst)
+
+        return trans
 
     def _test_aug(self, results):
         outs = []
