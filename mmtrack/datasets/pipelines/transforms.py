@@ -1,9 +1,10 @@
+import copy
+
 import cv2
 import mmcv
 import numpy as np
 from mmdet.datasets.builder import PIPELINES
-from mmdet.datasets.pipelines import Normalize, Pad, RandomFlip, Resize, RandomCenterCropPad
-
+from mmdet.datasets.pipelines import Normalize, Pad, RandomFlip, Resize
 from mmtrack.core import crop_image
 from numpy import random
 
@@ -856,6 +857,7 @@ class SeqRandomCenterCropPad(object):
             new_w = int(self.crop_size[1])
 
             for i in range(50):
+                all_bboxes_t = copy.deepcopy(all_bboxes)
                 ct[0] = np.random.randint(low=w_border, high=w - w_border)
                 ct[1] = np.random.randint(low=h_border, high=h - h_border)
                 size_t = img_size * aug_scale
@@ -869,12 +871,13 @@ class SeqRandomCenterCropPad(object):
                 cropped_imgs = []
                 # masks = []
                 for idx, img in enumerate(imgs):
-                    bboxes = all_bboxes[idx]
-                    mask = np.zeros(len(bboxes), dtype=bool)
+                    # bboxes = all_bboxes[idx]
+                    bboxes_t = all_bboxes_t[idx]
+                    mask = np.zeros(len(bboxes_t), dtype=bool)
                     cropped_img = cv2.warpAffine(img, trans_input, (new_w, new_h), flags=cv2.INTER_LINEAR)
                     cropped_imgs.append(cropped_img)
 
-                    for i, bbox in enumerate(bboxes):
+                    for i, bbox_t in enumerate(bboxes_t):
 
                         # rect = np.array([[bbox[0], bbox[1]], [bbox[0], bbox[3]],
                         #                  [bbox[2], bbox[3]], [bbox[2], bbox[1]]], dtype=np.float32)
@@ -883,11 +886,11 @@ class SeqRandomCenterCropPad(object):
                         # bbox[:2] = rect[:, 0].min(), rect[:, 1].min()
                         # bbox[2:] = rect[:, 0].max(), rect[:, 1].max()
 
-                        bbox[:2] = self._affine_transform(bbox[:2], trans_input)
-                        bbox[2:] = self._affine_transform(bbox[2:], trans_input)
+                        bbox_t[:2] = self._affine_transform(bbox_t[:2], trans_input)
+                        bbox_t[2:] = self._affine_transform(bbox_t[2:], trans_input)
 
                         # don't need
-                        bbox_test = bbox.copy()
+                        bbox_test = bbox_t.copy()
                         bbox_test[[0, 2]] = np.clip(bbox_test[[0, 2]], 0, new_w - 1)
                         bbox_test[[1, 3]] = np.clip(bbox_test[[1, 3]], 0, new_h - 1)
 
@@ -898,7 +901,7 @@ class SeqRandomCenterCropPad(object):
                         mask[i] = True
                     # masks.append(mask)
                     # if image do not have valid bbox, any crop patch is valid.
-                    if not mask.any() and len(bboxes) > 0:
+                    if not mask.any() and len(bboxes_t) > 0:
                         has_bbox = False
                         cropped_imgs.clear()
                         # masks.clear()
@@ -911,7 +914,7 @@ class SeqRandomCenterCropPad(object):
                     result['img'] = cropped_imgs[idx]
                     result['img_shape'] = cropped_imgs[idx].shape
                     result['pad_shape'] = cropped_imgs[idx].shape
-                    result['gt_bboxes'] = all_bboxes[idx]
+                    result['gt_bboxes'] = all_bboxes_t[idx]
                     #             labels = result['gt_labels']
                     #             labels = labels
                     #             result['gt_labels'] = labels
@@ -1011,6 +1014,7 @@ class SeqRandomCenterCropPad(object):
         def get_3rd_point(a, b):
             direct = a - b
             return b + np.array([-direct[1], direct[0]], dtype=np.float32)
+
         src[2:, :] = get_3rd_point(src[0, :], src[1, :])
         dst[2:, :] = get_3rd_point(dst[0, :], dst[1, :])
 
