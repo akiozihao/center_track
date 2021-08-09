@@ -847,6 +847,7 @@ class SeqRandomCenterCropPad(object):
         #     aug_s = np.clip(np.random.randn() * sf + 1, 1 - sf, 1 + sf)
 
         while True:
+            # print('in while')
             aug_scale = np.random.choice(self.ratios)
             h_border = self._get_border(self.border, h)
             w_border = self._get_border(self.border, w)
@@ -857,12 +858,12 @@ class SeqRandomCenterCropPad(object):
             for i in range(50):
                 ct[0] = np.random.randint(low=w_border, high=w - w_border)
                 ct[1] = np.random.randint(low=h_border, high=h - h_border)
-                img_size = img_size * aug_scale
+                size_t = img_size * aug_scale
 
                 trans_input = self._get_affine_transform(
-                    ct, img_size, [new_w, new_h])
+                    ct, size_t, [new_w, new_h])
                 trans_input_inv = self._get_affine_transform(
-                    ct, img_size, [new_w, new_h], inv=1)
+                    ct, size_t, [new_w, new_h], inv=1)
 
                 has_bbox = True
                 cropped_imgs = []
@@ -886,12 +887,12 @@ class SeqRandomCenterCropPad(object):
                         bbox[2:] = self._affine_transform(bbox[2:], trans_input)
 
                         # don't need
-                        # bbox_amodal = copy.deepcopy(bbox)
-                        # bbox_amodal = bbox.copy()
-                        bbox[[0, 2]] = np.clip(bbox[[0, 2]], 0, new_w - 1)
-                        bbox[[1, 3]] = np.clip(bbox[[1, 3]], 0, new_h - 1)
+                        bbox_test = bbox.copy()
+                        bbox_test[[0, 2]] = np.clip(bbox_test[[0, 2]], 0, new_w - 1)
+                        bbox_test[[1, 3]] = np.clip(bbox_test[[1, 3]], 0, new_h - 1)
 
-                        bbox_h, bbox_w = bbox[3] - bbox[1], bbox[2] - bbox[0]
+                        bbox_h, bbox_w = bbox_test[3] - bbox_test[1], bbox_test[2] - bbox_test[0]
+                        # print('bbox_h',bbox_h,'bbox_w',bbox_w)
                         if bbox_h <= 0 or bbox_w <= 0:
                             continue
                         mask[i] = True
@@ -957,6 +958,7 @@ class SeqRandomCenterCropPad(object):
                     for key in result.get('seg_fields', []):
                         raise NotImplementedError(
                             'RandomCenterCropPad only supports bbox.')
+                # print('out while')
                 return results
 
     def _test_aug(self, results):
